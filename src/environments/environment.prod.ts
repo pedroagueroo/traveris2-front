@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://traveris-pro-back.railway.app/api'
+  apiUrl: 'https://backtraqveris-production.up.railway.app/api'
 };

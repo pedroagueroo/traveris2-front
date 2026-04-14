@@ -15,6 +15,7 @@ interface JsPDFInstance {
   rect(x: number, y: number, w: number, h: number, style?: string): JsPDFInstance;
   roundedRect(x: number, y: number, w: number, h: number, rx: number, ry: number, style?: string): JsPDFInstance;
   line(x1: number, y1: number, x2: number, y2: number): JsPDFInstance;
+  setLineDashPattern(pattern: number[], phase: number): JsPDFInstance;
   addImage(data: string, format: string, x: number, y: number, w: number, h: number): JsPDFInstance;
   save(filename: string): void;
   output(type: string): string;
@@ -30,207 +31,224 @@ export class ReciboPdfService {
     const detalle = await this.api.getRecibo(idRecibo).toPromise();
     if (!detalle) throw new Error('No se pudo cargar el recibo');
 
-    // Importar jsPDF dinámicamente
     const { jsPDF } = await import('jspdf');
-
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }) as unknown as JsPDFInstance;
     const pageW = doc.internal.pageSize.getWidth();
-    const margin = 15;
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 12;
     const contentW = pageW - 2 * margin;
+    const halfH = pageH / 2;
 
     const recibo = detalle.recibo;
     const agencia = detalle.agencia;
     const reserva = detalle.reserva;
 
-    // Parsear colores del config
-    const primaryColor = this.hexToRgb(agencia?.recibo_config?.primaryColor || '#6366F1');
-    const secondaryColor = this.hexToRgb(agencia?.recibo_config?.secondaryColor || '#8B5CF6');
+    // Parsear colores
+    const primary = this.hexToRgb(agencia?.recibo_config?.primaryColor || '#6366F1');
+    const secondary = this.hexToRgb(agencia?.recibo_config?.secondaryColor || '#8B5CF6');
 
-    let y = margin;
+    // ═══════════════════════════════════════════════════════════════
+    // COPIA 1 — AGENCIA (top half)
+    // ═══════════════════════════════════════════════════════════════
+    this.dibujarRecibo(doc, recibo, agencia, reserva, primary, secondary, margin, contentW, pageW, 0, 'ORIGINAL — AGENCIA');
 
-    // ═══════════════════════════════════════════════════════════════════
-    // HEADER — Franja superior con color
-    // ═══════════════════════════════════════════════════════════════════
-    doc.setFillColor(primaryColor.r, primaryColor.g, primaryColor.b);
-    doc.rect(0, 0, pageW, 35, 'F');
-
-    // Nombre agencia
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.setTextColor(255, 255, 255);
-    doc.text(agencia?.nombre_comercial || agencia?.empresa_nombre || 'Traveris Pro', margin, 15);
-
-    // Datos de contacto de la agencia
+    // ═══════════════════════════════════════════════════════════════
+    // LÍNEA DE CORTE
+    // ═══════════════════════════════════════════════════════════════
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineDashPattern([3, 2], 0);
+    doc.line(5, halfH, pageW - 5, halfH);
+    // Scissors icon
     doc.setFontSize(8);
+    doc.setTextColor(180, 180, 180);
+    doc.setFont('helvetica', 'normal');
+    doc.text('✂ — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — ', pageW / 2, halfH - 1, { align: 'center' });
+    doc.setLineDashPattern([], 0);
+
+    // ═══════════════════════════════════════════════════════════════
+    // COPIA 2 — CLIENTE (bottom half)
+    // ═══════════════════════════════════════════════════════════════
+    this.dibujarRecibo(doc, recibo, agencia, reserva, primary, secondary, margin, contentW, pageW, halfH + 2, 'DUPLICADO — CLIENTE');
+
+    // ANULADO watermark
+    if (recibo.anulado) {
+      doc.setFontSize(50);
+      doc.setTextColor(239, 68, 68);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ANULADO', pageW / 2, halfH / 2, { align: 'center', angle: 30 } as Record<string, unknown>);
+      doc.text('ANULADO', pageW / 2, halfH + halfH / 2, { align: 'center', angle: 30 } as Record<string, unknown>);
+    }
+
+    const filename = `Recibo_${String(recibo.numero_recibo).padStart(6, '0')}_${recibo.nombre_cliente?.replace(/\s+/g, '_') || 'cliente'}.pdf`;
+    doc.save(filename);
+  }
+
+  private dibujarRecibo(
+    doc: JsPDFInstance,
+    recibo: ReciboDetalle['recibo'],
+    agencia: ReciboDetalle['agencia'],
+    reserva: ReciboDetalle['reserva'],
+    primary: { r: number; g: number; b: number },
+    secondary: { r: number; g: number; b: number },
+    margin: number, contentW: number, pageW: number,
+    offsetY: number, copyLabel: string
+  ): void {
+    let y = offsetY + 5;
+
+    // ── HEADER ──
+    doc.setFillColor(primary.r, primary.g, primary.b);
+    doc.rect(0, offsetY, pageW, 22, 'F');
+
+    // Agency name
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(255, 255, 255);
+    doc.text(agencia?.nombre_comercial || agencia?.empresa_nombre || 'Traveris Pro', margin, y + 6);
+
+    // Contact
+    doc.setFontSize(6.5);
     doc.setFont('helvetica', 'normal');
     const contactLine = [agencia?.domicilio, agencia?.telefono, agencia?.email].filter(Boolean).join(' | ');
-    doc.text(contactLine, margin, 22);
+    doc.text(contactLine, margin, y + 11);
 
-    // CUIT y condición fiscal
+    // CUIT
     const fiscalLine = [
       agencia?.cuit_cuil ? `CUIT: ${agencia.cuit_cuil}` : null,
       agencia?.condicion_fiscal
     ].filter(Boolean).join(' — ');
-    doc.text(fiscalLine, margin, 28);
+    if (fiscalLine) doc.text(fiscalLine, margin, y + 15);
 
-    // Número de recibo (derecha)
+    // Nro recibo (right)
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(24);
-    doc.text(`#${String(recibo.numero_recibo).padStart(6, '0')}`, pageW - margin, 18, { align: 'right' });
+    doc.setFontSize(16);
+    doc.text(`#${String(recibo.numero_recibo).padStart(6, '0')}`, pageW - margin, y + 6, { align: 'right' });
 
-    doc.setFontSize(9);
+    doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    doc.text('RECIBO NO FISCAL', pageW - margin, 26, { align: 'right' });
+    doc.text('RECIBO NO FISCAL', pageW - margin, y + 12, { align: 'right' });
 
-    y = 45;
+    // Copy label (ORIGINAL / DUPLICADO)
+    doc.setFontSize(5.5);
+    doc.text(copyLabel, pageW - margin, y + 16, { align: 'right' });
 
-    // ═══════════════════════════════════════════════════════════════════
-    // DATOS DEL CLIENTE
-    // ═══════════════════════════════════════════════════════════════════
+    y = offsetY + 25;
+
+    // ── DATOS DEL CLIENTE ──
     doc.setTextColor(60, 60, 60);
-    doc.setFontSize(10);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.text('RECIBÍ DE:', margin, y);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
-    doc.text(recibo.nombre_cliente || 'Sin nombre', margin + 28, y);
+    doc.setFontSize(10);
+    doc.text(recibo.nombre_cliente || 'Sin nombre', margin + 22, y);
 
-    y += 8;
-    doc.setFontSize(9);
+    // DNI + Date (same line)
+    y += 5;
+    doc.setFontSize(7.5);
     doc.setTextColor(100, 100, 100);
     if (recibo.dni_cliente) {
       doc.text(`DNI/Pasaporte: ${recibo.dni_cliente}`, margin, y);
     }
+    doc.text(`Fecha: ${this.formatFecha(recibo.fecha)}`, pageW - margin, y, { align: 'right' });
 
-    // Fecha
-    doc.text(`Fecha: ${this.formatFecha(recibo.fecha)}`, pageW - margin - 50, y);
+    y += 7;
 
-    y += 12;
-
-    // ═══════════════════════════════════════════════════════════════════
-    // CONCEPTO Y MONTO
-    // ═══════════════════════════════════════════════════════════════════
-    // Box con borde
-    doc.setDrawColor(primaryColor.r, primaryColor.g, primaryColor.b);
+    // ── CONCEPTO + MONTO BOX ──
+    doc.setDrawColor(primary.r, primary.g, primary.b);
     doc.setFillColor(248, 250, 252);
-    doc.roundedRect(margin, y, contentW, 35, 3, 3, 'FD');
+    doc.roundedRect(margin, y, contentW, 22, 2, 2, 'FD');
 
-    y += 10;
     doc.setTextColor(60, 60, 60);
-    doc.setFontSize(9);
+    doc.setFontSize(7);
     doc.setFont('helvetica', 'bold');
-    doc.text('CONCEPTO', margin + 5, y);
+    doc.text('CONCEPTO', margin + 4, y + 5);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    const concepto = recibo.concepto || this.generarConcepto(recibo, reserva);
-    doc.text(concepto, margin + 5, y + 7);
-
-    // Monto grande a la derecha
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(22);
-    doc.setTextColor(primaryColor.r, primaryColor.g, primaryColor.b);
-    const montoStr = this.formatMonto(recibo.monto, recibo.moneda);
-    doc.text(montoStr, pageW - margin - 5, y + 5, { align: 'right' });
-
-    // Moneda label
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text(recibo.moneda, pageW - margin - 5, y + 12, { align: 'right' });
-
-    y += 40;
-
-    // ═══════════════════════════════════════════════════════════════════
-    // DETALLES
-    // ═══════════════════════════════════════════════════════════════════
-    doc.setTextColor(60, 60, 60);
     doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DETALLES DEL PAGO', margin, y);
-    y += 6;
+    const concepto = recibo.concepto || this.generarConcepto(recibo, reserva);
+    doc.text(concepto, margin + 4, y + 11);
 
-    // Línea separadora
+    // Monto
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(primary.r, primary.g, primary.b);
+    const montoStr = this.formatMonto(recibo.monto, recibo.moneda);
+    doc.text(montoStr, pageW - margin - 4, y + 10, { align: 'right' });
+
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(recibo.moneda, pageW - margin - 4, y + 16, { align: 'right' });
+
+    y += 25;
+
+    // ── DETALLES ──
+    doc.setTextColor(60, 60, 60);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DETALLES', margin, y);
+    y += 3;
+
     doc.setDrawColor(220, 220, 220);
     doc.line(margin, y, pageW - margin, y);
-    y += 5;
+    y += 3.5;
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(7);
 
     const detalles: [string, string][] = [
       ['Tipo de pago', this.traducirTipo(recibo.pago_tipo || '')],
-      ['Método de pago', recibo.metodo_pago || '-'],
-      ['Fecha de pago', this.formatFecha(recibo.pago_fecha || recibo.fecha)]
+      ['Método', recibo.metodo_pago || '-'],
+      ['Fecha pago', this.formatFecha(recibo.pago_fecha || recibo.fecha)]
     ];
 
     if (reserva) {
       detalles.push(['Destino', reserva.destino_final || '-']);
-      if (reserva.fecha_viaje_salida) detalles.push(['Fecha viaje', `${reserva.fecha_viaje_salida} → ${reserva.fecha_viaje_regreso || '?'}`]);
+      if (reserva.fecha_viaje_salida) {
+        detalles.push(['Viaje', `${this.formatFechaCorta(reserva.fecha_viaje_salida)} → ${this.formatFechaCorta(reserva.fecha_viaje_regreso || '')}`]);
+      }
     }
 
     detalles.forEach(([label, value]) => {
       doc.setTextColor(130, 130, 130);
       doc.text(label, margin, y);
       doc.setTextColor(60, 60, 60);
-      doc.text(value, margin + 50, y);
-      y += 6;
+      doc.text(value, margin + 30, y);
+      y += 4;
     });
 
-    y += 8;
+    y += 2;
 
-    // ═══════════════════════════════════════════════════════════════════
-    // MONTO EN LETRAS
-    // ═══════════════════════════════════════════════════════════════════
-    doc.setFillColor(secondaryColor.r, secondaryColor.g, secondaryColor.b);
-    doc.roundedRect(margin, y, contentW, 12, 2, 2, 'F');
+    // ── MONTO EN LETRAS ──
+    doc.setFillColor(secondary.r, secondary.g, secondary.b);
+    doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, 'F');
 
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(9);
+    doc.setFontSize(6.5);
     doc.setFont('helvetica', 'bold');
-    doc.text(`SON: ${this.montoEnLetras(recibo.monto, recibo.moneda)}`, margin + 5, y + 8);
+    doc.text(`SON: ${this.montoEnLetras(recibo.monto, recibo.moneda)}`, margin + 3, y + 5.5);
 
-    y += 20;
+    y += 12;
 
-    // ═══════════════════════════════════════════════════════════════════
-    // FIRMA
-    // ═══════════════════════════════════════════════════════════════════
+    // ── FIRMAS ──
     doc.setDrawColor(180, 180, 180);
-    doc.line(margin + 20, y + 15, margin + 80, y + 15);
+    const firmaW = 50;
+
+    doc.line(margin + 10, y + 8, margin + 10 + firmaW, y + 8);
     doc.setTextColor(130, 130, 130);
-    doc.setFontSize(8);
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'normal');
-    doc.text('Firma y sello', margin + 40, y + 20);
+    doc.text('Firma y sello', margin + 10 + firmaW / 2, y + 11, { align: 'center' });
 
-    doc.line(pageW - margin - 80, y + 15, pageW - margin - 20, y + 15);
-    doc.text('Firma del cliente', pageW - margin - 60, y + 20);
+    doc.line(pageW - margin - 10 - firmaW, y + 8, pageW - margin - 10, y + 8);
+    doc.text('Firma del cliente', pageW - margin - 10 - firmaW / 2, y + 11, { align: 'center' });
 
-    y += 30;
-
-    // ═══════════════════════════════════════════════════════════════════
-    // FOOTER LEGAL
-    // ═══════════════════════════════════════════════════════════════════
-    const footerY = 270;
-    doc.setDrawColor(220, 220, 220);
-    doc.line(margin, footerY, pageW - margin, footerY);
-
-    doc.setFontSize(7);
-    doc.setTextColor(150, 150, 150);
-    doc.setFont('helvetica', 'normal');
-
+    // ── FOOTER LEGAL ──
+    const footerY = offsetY + (297 / 2) - 8;
+    doc.setFontSize(5.5);
+    doc.setTextColor(160, 160, 160);
     const footerLegal = agencia?.recibo_footer_legal || 'Documento no fiscal. No válido como factura.';
-    doc.text(footerLegal, pageW / 2, footerY + 5, { align: 'center' });
-
-    if (recibo.anulado) {
-      doc.setFontSize(40);
-      doc.setTextColor(239, 68, 68);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ANULADO', pageW / 2, 150, { align: 'center', angle: 45 } as Record<string, unknown>);
-    }
-
-    // Generar nombre y descargar
-    const filename = `Recibo_${String(recibo.numero_recibo).padStart(6, '0')}_${recibo.nombre_cliente?.replace(/\s+/g, '_') || 'cliente'}.pdf`;
-    doc.save(filename);
+    doc.text(footerLegal, pageW / 2, footerY, { align: 'center' });
   }
 
   // ─── HELPERS ──────────────────────────────────────────────────────────────
@@ -244,6 +262,11 @@ export class ReciboPdfService {
 
   private formatFecha(fecha: string): string {
     return new Date(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
+  }
+
+  private formatFechaCorta(fecha: string): string {
+    if (!fecha) return '?';
+    return new Date(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
   private formatMonto(monto: number, moneda: Moneda): string {
@@ -282,7 +305,6 @@ export class ReciboPdfService {
     const convertir = (n: number): string => {
       if (n === 0) return 'CERO';
       if (n === 100) return 'CIEN';
-
       let resultado = '';
       if (n >= 1000) {
         const miles = Math.floor(n / 1000);

@@ -106,6 +106,10 @@ export class ApiService {
     return this.http.delete<{ mensaje: string }>(`${this.api}/clientes/${id}`);
   }
 
+  deleteAllClientes(): Observable<{ mensaje: string }> {
+    return this.http.delete<{ mensaje: string }>(`${this.api}/clientes/todos`);
+  }
+
   uploadClienteArchivo(idCliente: number, file: File): Observable<{ id: number; nombre_archivo: string; ruta_archivo: string }> {
     const fd = new FormData();
     fd.append('archivo', file);
@@ -167,6 +171,10 @@ export class ApiService {
 
   deleteReserva(id: number): Observable<{ mensaje: string }> {
     return this.http.delete<{ mensaje: string }>(`${this.api}/reservas/${id}`);
+  }
+
+  deleteAllReservas(): Observable<{ mensaje: string }> {
+    return this.http.delete<{ mensaje: string }>(`${this.api}/reservas/todos`);
   }
 
   uploadReservaArchivo(idReserva: number, file: File): Observable<ReservaArchivo> {

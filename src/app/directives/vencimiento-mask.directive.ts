@@ -1,4 +1,5 @@
-import { Directive, ElementRef, HostListener } from '@angular/core';
+import { Directive, ElementRef, HostListener, Optional, Self } from '@angular/core';
+import { NgControl } from '@angular/forms';
 
 /**
  * Directiva para formatear vencimiento de tarjeta: MM/AA
@@ -9,10 +10,18 @@ import { Directive, ElementRef, HostListener } from '@angular/core';
   standalone: true
 })
 export class VencimientoMaskDirective {
-  constructor(private el: ElementRef<HTMLInputElement>) {}
+  private formatting = false;
+
+  constructor(
+    private el: ElementRef<HTMLInputElement>,
+    @Optional() @Self() private ngControl: NgControl
+  ) {}
 
   @HostListener('input')
   onInput(): void {
+    if (this.formatting) return;
+    this.formatting = true;
+
     const input = this.el.nativeElement;
     let value = input.value.replace(/\D/g, '');
 
@@ -28,11 +37,17 @@ export class VencimientoMaskDirective {
     }
 
     // Formato MM/AA
+    let formatted = value;
     if (value.length > 2) {
-      value = value.substring(0, 2) + '/' + value.substring(2);
+      formatted = value.substring(0, 2) + '/' + value.substring(2);
     }
 
-    input.value = value;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.value = formatted;
+
+    if (this.ngControl?.control) {
+      this.ngControl.control.setValue(formatted, { emitEvent: false });
+    }
+
+    this.formatting = false;
   }
 }

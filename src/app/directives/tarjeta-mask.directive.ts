@@ -1,8 +1,8 @@
-import { Directive, ElementRef, HostListener } from '@angular/core';
+import { Directive, ElementRef, HostListener, Optional, Self } from '@angular/core';
+import { NgControl } from '@angular/forms';
 
 /**
  * Directiva para formatear tarjeta de crédito: XXXX XXXX XXXX XXXX
- * Muestra últimos 4, enmascara el resto con •
  * Uso: <input appTarjetaMask />
  */
 @Directive({
@@ -11,11 +11,18 @@ import { Directive, ElementRef, HostListener } from '@angular/core';
 })
 export class TarjetaMaskDirective {
   private rawValue = '';
+  private formatting = false;
 
-  constructor(private el: ElementRef<HTMLInputElement>) {}
+  constructor(
+    private el: ElementRef<HTMLInputElement>,
+    @Optional() @Self() private ngControl: NgControl
+  ) {}
 
   @HostListener('input')
   onInput(): void {
+    if (this.formatting) return;
+    this.formatting = true;
+
     const input = this.el.nativeElement;
     let value = input.value.replace(/\D/g, '');
 
@@ -27,7 +34,12 @@ export class TarjetaMaskDirective {
     // Formato: XXXX XXXX XXXX XXXX
     const formatted = value.replace(/(.{4})/g, '$1 ').trim();
     input.value = formatted;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    if (this.ngControl?.control) {
+      this.ngControl.control.setValue(formatted, { emitEvent: false });
+    }
+
+    this.formatting = false;
   }
 
   /** Retorna el valor crudo (sin espacios) */

@@ -226,7 +226,12 @@ export interface DeudaServicio {
 }
 
 export interface DeudaProveedorAgrupada {
+  id: number;
+  id_servicio: number;
   id_proveedor: number | null;
+  tipo_servicio: TipoServicio;
+  descripcion: string | null;
+  servicio_nombre: string | null;
   proveedor_nombre: string | null;
   moneda: Moneda;
   deuda_total: number;

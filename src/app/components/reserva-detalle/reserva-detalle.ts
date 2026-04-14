@@ -1,16 +1,17 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink, Router } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { ReciboPdfService } from '../../services/recibo-pdf.service';
+import { ConfirmService } from '../../services/confirm.service';
 import {
   Reserva, ServicioDetallado, Pago, Proveedor, MetodoPago,
   DeudaClienteDetalle, DeudaProveedorAgrupada, DeudaTotales,
   TarjetaCliente, Recibo, Moneda, TipoServicio
 } from '../../models';
 
-type Tab = 'info' | 'servicios' | 'deudas' | 'pagos' | 'vuelos' | 'archivos' | 'recibos';
+type Tab = 'info' | 'servicios' | 'deudas' | 'pagos' | 'archivos' | 'recibos';
 
 interface ServicioForm {
   tipo_servicio: string;
@@ -19,15 +20,41 @@ interface ServicioForm {
   moneda: string;
   precio_cliente: number;
   costo_proveedor: number;
+  // HOTEL
   hotel_nombre: string;
   hotel_ciudad: string;
   hotel_check_in: string;
   hotel_check_out: string;
   hotel_regimen: string;
+  hotel_noches: number | null;
+  hotel_categoria: string;
+  // VUELO
+  vuelo_aerolinea: string;
+  vuelo_nro: string;
+  vuelo_origen: string;
+  vuelo_destino: string;
+  vuelo_fecha_salida: string;
+  vuelo_fecha_llegada: string;
+  vuelo_clase: string;
+  vuelo_codigo_reserva: string;
+  // ASISTENCIA
   asistencia_compania: string;
   asistencia_plan: string;
   asistencia_fecha_desde: string;
   asistencia_fecha_hasta: string;
+  asistencia_cobertura: string;
+  // VISA
+  visa_pais: string;
+  visa_tipo: string;
+  visa_fecha_tramite: string;
+  visa_nro_tramite: string;
+  // CRUCERO
+  crucero_naviera: string;
+  crucero_barco: string;
+  crucero_itinerario: string;
+  crucero_cabina: string;
+  crucero_fecha_embarque: string;
+  crucero_fecha_desembarque: string;
 }
 
 @Component({
@@ -55,6 +82,7 @@ interface ServicioForm {
           </div>
           <div class="d-flex gap-2">
             <a [routerLink]="['/reservas/editar', reserva.id]" class="btn-elite-outline">✏️ Editar</a>
+            <button class="btn-elite-outline" style="color: #ef4444; border-color: #ef4444;" (click)="eliminarReserva()">🗑️ Eliminar</button>
             <a routerLink="/reservas" class="btn-elite-outline">← Volver</a>
           </div>
         </div>
@@ -78,11 +106,11 @@ interface ServicioForm {
                   <div class="col-md-6"><div class="info-label">TITULAR</div><div class="info-value">{{ reserva.titular_nombre }}</div></div>
                   <div class="col-md-6"><div class="info-label">DNI</div><div class="info-value">{{ reserva.titular_dni || '-' }}</div></div>
                   <div class="col-md-6"><div class="info-label">DESTINO</div><div class="info-value">{{ reserva.destino_final || '-' }}</div></div>
-                  <div class="col-md-3"><div class="info-label">SALIDA</div><div class="info-value">{{ reserva.fecha_viaje_salida || '-' }}</div></div>
-                  <div class="col-md-3"><div class="info-label">REGRESO</div><div class="info-value">{{ reserva.fecha_viaje_regreso || '-' }}</div></div>
+                  <div class="col-md-3"><div class="info-label">SALIDA</div><div class="info-value">{{ reserva.fecha_viaje_salida ? formatDate(reserva.fecha_viaje_salida) : '-' }}</div></div>
+                  <div class="col-md-3"><div class="info-label">REGRESO</div><div class="info-value">{{ reserva.fecha_viaje_regreso ? formatDate(reserva.fecha_viaje_regreso) : '-' }}</div></div>
                   <div class="col-md-6"><div class="info-label">OPERADOR</div><div class="info-value">{{ reserva.operador_mayorista || '-' }}</div></div>
                   <div class="col-md-6"><div class="info-label">EXPEDIENTE</div><div class="info-value">{{ reserva.nro_expediente_operador || '-' }}</div></div>
-                  <div class="col-md-6"><div class="info-label">LÍMITE PAGO</div><div class="info-value" [class.urgente-text]="isUrgente()">{{ reserva.fecha_limite_pago || '-' }}</div></div>
+                  <div class="col-md-6"><div class="info-label">LÍMITE PAGO</div><div class="info-value" [class.urgente-text]="isUrgente()">{{ reserva.fecha_limite_pago ? formatDate(reserva.fecha_limite_pago) : '-' }}</div></div>
                   <div class="col-12"><div class="info-label">OBSERVACIONES</div><div class="info-value">{{ reserva.observaciones_internas || '-' }}</div></div>
                 </div>
               </div>
@@ -114,29 +142,32 @@ interface ServicioForm {
 
             @if (mostrarFormServicio) {
               <div class="glass-card-solid mb-3">
-                <h6 class="fw-bold mb-3">Nuevo Servicio</h6>
+                <h6 class="fw-bold mb-3">{{ editandoServicioId ? '✏️ Editar Servicio' : 'Nuevo Servicio' }}</h6>
                 <div class="row g-3">
                   <div class="col-md-3">
                     <label class="form-label-elite">Tipo *</label>
                     <select class="form-select-elite w-100" [(ngModel)]="svcForm.tipo_servicio">
-                      <option value="HOTEL">Hotel</option>
-                      <option value="VUELO">Vuelo</option>
-                      <option value="ASISTENCIA">Asistencia</option>
-                      <option value="VISA">Visa</option>
-                      <option value="CRUCERO">Crucero</option>
-                      <option value="SERVICIO">Otro Servicio</option>
+                      <option value="HOTEL">🏨 Hotel</option>
+                      <option value="VUELO">✈️ Vuelo</option>
+                      <option value="ASISTENCIA">🛡️ Asistencia</option>
+                      <option value="VISA">📋 Visa</option>
+                      <option value="CRUCERO">🚢 Crucero</option>
+                      <option value="SERVICIO">📦 Otro Servicio</option>
                     </select>
                   </div>
                   <div class="col-md-3">
                     <label class="form-label-elite">Proveedor</label>
-                    <select class="form-select-elite w-100" [(ngModel)]="svcForm.id_proveedor">
-                      <option [ngValue]="null">Sin proveedor</option>
-                      @for (p of proveedores; track p.id) {
-                        <option [ngValue]="p.id">{{ p.nombre_comercial }}</option>
-                      }
-                    </select>
+                    <div class="d-flex gap-1">
+                      <select class="form-select-elite w-100" [(ngModel)]="svcForm.id_proveedor">
+                        <option [ngValue]="null">Sin proveedor</option>
+                        @for (p of proveedores; track p.id) {
+                          <option [ngValue]="p.id">{{ p.nombre_comercial }}</option>
+                        }
+                      </select>
+                      <button class="btn-elite-outline" style="padding:0.3rem 0.5rem;font-size:0.75rem;white-space:nowrap;" (click)="mostrarFormProveedorRapido = !mostrarFormProveedorRapido" title="Nuevo proveedor">➕</button>
+                    </div>
                   </div>
-                  <div class="col-md-3">
+                  <div class="col-md-2">
                     <label class="form-label-elite">Moneda *</label>
                     <select class="form-select-elite w-100" [(ngModel)]="svcForm.moneda">
                       <option value="ARS">ARS</option>
@@ -144,50 +175,131 @@ interface ServicioForm {
                       <option value="EUR">EUR</option>
                     </select>
                   </div>
-                  <div class="col-md-3">
-                    <label class="form-label-elite">Descripción</label>
-                    <input class="form-control-elite w-100" [(ngModel)]="svcForm.descripcion" />
-                  </div>
-                  <div class="col-md-3">
+                  <div class="col-md-2">
                     <label class="form-label-elite">Precio Cliente *</label>
                     <input type="number" step="0.01" class="form-control-elite w-100" [(ngModel)]="svcForm.precio_cliente" />
                   </div>
-                  <div class="col-md-3">
+                  <div class="col-md-2">
                     <label class="form-label-elite">Costo Proveedor *</label>
                     <input type="number" step="0.01" class="form-control-elite w-100" [(ngModel)]="svcForm.costo_proveedor" />
                   </div>
-                  <div class="col-md-3">
+                </div>
+
+                <!-- Mini-form proveedor rápido -->
+                @if (mostrarFormProveedorRapido) {
+                  <div class="row g-2 mt-2 p-2" style="background: var(--bg-secondary); border-radius: 10px; border: 1px dashed var(--primary);">
+                    <div class="col-12" style="font-size:0.75rem; font-weight:700; color:var(--primary);">➕ Nuevo Proveedor Rápido</div>
+                    <div class="col-md-3"><input class="form-control-elite w-100" placeholder="Nombre comercial *" [(ngModel)]="proveedorRapido.nombre_comercial" /></div>
+                    <div class="col-md-3"><input class="form-control-elite w-100" placeholder="Contacto" [(ngModel)]="proveedorRapido.contacto" /></div>
+                    <div class="col-md-3"><input class="form-control-elite w-100" placeholder="Email" [(ngModel)]="proveedorRapido.email" /></div>
+                    <div class="col-md-3 d-flex align-items-end gap-1">
+                      <button class="btn-success-elite" style="font-size:0.75rem;padding:0.35rem 0.75rem;" (click)="crearProveedorRapido()"><span>Crear</span></button>
+                      <button class="btn-elite-outline" style="font-size:0.75rem;padding:0.35rem 0.5rem;" (click)="mostrarFormProveedorRapido = false">✕</button>
+                    </div>
+                  </div>
+                }
+
+                <!-- Ganancia + Descripción -->
+                <div class="row g-3 mt-1">
+                  <div class="col-md-2">
                     <label class="form-label-elite">Ganancia</label>
                     <div class="form-control-elite w-100" style="background: var(--bg-secondary);"
                          [style.color]="gananciaServicio() >= 0 ? 'var(--success)' : 'var(--danger)'">
                       {{ gananciaServicio() | number:'1.2-2' }}
                     </div>
                   </div>
+                  <div class="col-md-10">
+                    <label class="form-label-elite">Descripción / Notas</label>
+                    <input class="form-control-elite w-100" [(ngModel)]="svcForm.descripcion" placeholder="Detalle adicional del servicio" />
+                  </div>
                 </div>
 
-                <!-- Campos dinámicos según tipo -->
+                <!-- ═══ Campos dinámicos según tipo ═══ -->
+
                 @if (svcForm.tipo_servicio === 'HOTEL') {
-                  <div class="row g-3 mt-2">
-                    <div class="col-md-3"><input class="form-control-elite w-100" placeholder="Hotel" [(ngModel)]="svcForm.hotel_nombre" /></div>
-                    <div class="col-md-3"><input class="form-control-elite w-100" placeholder="Ciudad" [(ngModel)]="svcForm.hotel_ciudad" /></div>
-                    <div class="col-md-2"><label style="font-size:0.7rem;color:var(--text-muted)">Check-in</label><input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.hotel_check_in" /></div>
-                    <div class="col-md-2"><label style="font-size:0.7rem;color:var(--text-muted)">Check-out</label><input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.hotel_check_out" /></div>
-                    <div class="col-md-2"><input class="form-control-elite w-100" placeholder="Régimen" [(ngModel)]="svcForm.hotel_regimen" /></div>
+                  <div class="tipo-fields-label">🏨 Datos del Hotel</div>
+                  <div class="row g-2">
+                    <div class="col-md-3"><label class="form-label-elite">Nombre Hotel</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.hotel_nombre" /></div>
+                    <div class="col-md-2"><label class="form-label-elite">Ciudad</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.hotel_ciudad" /></div>
+                    <div class="col-md-2"><label class="form-label-elite">Check-in</label><input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.hotel_check_in" /></div>
+                    <div class="col-md-2"><label class="form-label-elite">Check-out</label><input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.hotel_check_out" /></div>
+                    <div class="col-md-3"><label class="form-label-elite">Régimen</label>
+                      <select class="form-select-elite w-100" [(ngModel)]="svcForm.hotel_regimen">
+                        <option value="">Seleccionar...</option>
+                        <option value="Solo Alojamiento">Solo Alojamiento</option>
+                        <option value="Desayuno">Desayuno</option>
+                        <option value="Media Pensión">Media Pensión</option>
+                        <option value="Pensión Completa">Pensión Completa</option>
+                        <option value="All Inclusive">All Inclusive</option>
+                      </select>
+                    </div>
+                    <div class="col-md-2"><label class="form-label-elite">Noches</label><input type="number" class="form-control-elite w-100" [(ngModel)]="svcForm.hotel_noches" /></div>
+                    <div class="col-md-2"><label class="form-label-elite">Categoría</label>
+                      <select class="form-select-elite w-100" [(ngModel)]="svcForm.hotel_categoria">
+                        <option value="">—</option>
+                        <option value="★">★</option><option value="★★">★★</option><option value="★★★">★★★</option>
+                        <option value="★★★★">★★★★</option><option value="★★★★★">★★★★★</option>
+                      </select>
+                    </div>
+                  </div>
+                }
+
+                @if (svcForm.tipo_servicio === 'VUELO') {
+                  <div class="tipo-fields-label">✈️ Datos del Vuelo</div>
+                  <div class="row g-2">
+                    <div class="col-md-3"><label class="form-label-elite">Aerolínea</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_aerolinea" /></div>
+                    <div class="col-md-2"><label class="form-label-elite">Nro Vuelo</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_nro" /></div>
+                    <div class="col-md-2"><label class="form-label-elite">Origen</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_origen" /></div>
+                    <div class="col-md-2"><label class="form-label-elite">Destino</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_destino" /></div>
+                    <div class="col-md-3"><label class="form-label-elite">PNR / Código</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_codigo_reserva" /></div>
+                    <div class="col-md-3"><label class="form-label-elite">Fecha Salida</label><input type="datetime-local" class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_fecha_salida" /></div>
+                    <div class="col-md-3"><label class="form-label-elite">Fecha Llegada</label><input type="datetime-local" class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_fecha_llegada" /></div>
+                    <div class="col-md-2"><label class="form-label-elite">Clase</label>
+                      <select class="form-select-elite w-100" [(ngModel)]="svcForm.vuelo_clase">
+                        <option value="">—</option>
+                        <option value="Economy">Economy</option><option value="Premium Economy">Premium Economy</option>
+                        <option value="Business">Business</option><option value="First">First</option>
+                      </select>
+                    </div>
                   </div>
                 }
 
                 @if (svcForm.tipo_servicio === 'ASISTENCIA') {
-                  <div class="row g-3 mt-2">
-                    <div class="col-md-3"><input class="form-control-elite w-100" placeholder="Compañía" [(ngModel)]="svcForm.asistencia_compania" /></div>
-                    <div class="col-md-3"><input class="form-control-elite w-100" placeholder="Plan" [(ngModel)]="svcForm.asistencia_plan" /></div>
-                    <div class="col-md-3"><label style="font-size:0.7rem;color:var(--text-muted)">Desde</label><input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.asistencia_fecha_desde" /></div>
-                    <div class="col-md-3"><label style="font-size:0.7rem;color:var(--text-muted)">Hasta</label><input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.asistencia_fecha_hasta" /></div>
+                  <div class="tipo-fields-label">🛡️ Datos de la Asistencia</div>
+                  <div class="row g-2">
+                    <div class="col-md-3"><label class="form-label-elite">Compañía</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.asistencia_compania" /></div>
+                    <div class="col-md-3"><label class="form-label-elite">Plan</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.asistencia_plan" /></div>
+                    <div class="col-md-2"><label class="form-label-elite">Desde</label><input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.asistencia_fecha_desde" /></div>
+                    <div class="col-md-2"><label class="form-label-elite">Hasta</label><input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.asistencia_fecha_hasta" /></div>
+                    <div class="col-md-12"><label class="form-label-elite">Cobertura</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.asistencia_cobertura" placeholder="Detalle de cobertura" /></div>
+                  </div>
+                }
+
+                @if (svcForm.tipo_servicio === 'VISA') {
+                  <div class="tipo-fields-label">📋 Datos de la Visa</div>
+                  <div class="row g-2">
+                    <div class="col-md-3"><label class="form-label-elite">País</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.visa_pais" /></div>
+                    <div class="col-md-3"><label class="form-label-elite">Tipo Visa</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.visa_tipo" placeholder="Turismo, Trabajo..." /></div>
+                    <div class="col-md-3"><label class="form-label-elite">Fecha Trámite</label><input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.visa_fecha_tramite" /></div>
+                    <div class="col-md-3"><label class="form-label-elite">Nro Trámite</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.visa_nro_tramite" /></div>
+                  </div>
+                }
+
+                @if (svcForm.tipo_servicio === 'CRUCERO') {
+                  <div class="tipo-fields-label">🚢 Datos del Crucero</div>
+                  <div class="row g-2">
+                    <div class="col-md-3"><label class="form-label-elite">Naviera</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.crucero_naviera" /></div>
+                    <div class="col-md-3"><label class="form-label-elite">Barco</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.crucero_barco" /></div>
+                    <div class="col-md-3"><label class="form-label-elite">Cabina</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.crucero_cabina" /></div>
+                    <div class="col-md-3"><label class="form-label-elite">Embarque</label><input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.crucero_fecha_embarque" /></div>
+                    <div class="col-md-3"><label class="form-label-elite">Desembarque</label><input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.crucero_fecha_desembarque" /></div>
+                    <div class="col-md-9"><label class="form-label-elite">Itinerario</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.crucero_itinerario" placeholder="Puertos y paradas" /></div>
                   </div>
                 }
 
                 <div class="d-flex gap-2 mt-3">
-                  <button class="btn-elite" (click)="guardarServicio()"><span>Guardar</span></button>
-                  <button class="btn-elite-outline" (click)="mostrarFormServicio = false">Cancelar</button>
+                  <button class="btn-elite" (click)="guardarServicio()"><span>💾 {{ editandoServicioId ? 'Actualizar' : 'Guardar' }} Servicio</span></button>
+                  <button class="btn-elite-outline" (click)="cancelarFormServicio()">Cancelar</button>
                 </div>
               </div>
             }
@@ -206,6 +318,10 @@ interface ServicioForm {
                     <div style="font-size: 0.75rem; color: var(--text-muted);">Costo: <span class="fw-bold">{{ s.costo_proveedor | number:'1.2-2' }} {{ s.moneda }}</span></div>
                     <div style="font-size: 0.75rem;" [style.color]="(s.precio_cliente - s.costo_proveedor) >= 0 ? 'var(--success)' : 'var(--danger)'">
                       Ganancia: {{ s.precio_cliente - s.costo_proveedor | number:'1.2-2' }}
+                    </div>
+                    <div class="d-flex gap-1 mt-1 justify-content-end">
+                      <button class="btn-elite-outline" style="padding:0.2rem 0.5rem;font-size:0.7rem;" (click)="editarServicio(s)">✏️ Editar</button>
+                      <button class="btn-elite-outline" style="padding:0.2rem 0.5rem;font-size:0.7rem;color:var(--danger);border-color:var(--danger);" (click)="eliminarServicio(s.id)">🗑️</button>
                     </div>
                   </div>
                 </div>
@@ -246,16 +362,20 @@ interface ServicioForm {
               <div class="col-lg-6">
                 <div class="glass-card-solid">
                   <h5 class="section-title">🏢 Deuda a Proveedores</h5>
-                  @for (d of deudasProveedores; track d.id_proveedor) {
+                  @for (d of deudasProveedores; track d.id) {
                     <div class="deuda-item">
                       <div>
-                        <span class="fw-semibold" style="font-size: 0.85rem;">{{ d.proveedor_nombre || 'Sin proveedor' }}</span>
+                        <span class="status-pill" style="font-size: 0.65rem; padding: 0.15rem 0.4rem;">{{ d.tipo_servicio }}</span>
+                        <span class="fw-semibold" style="font-size: 0.85rem; margin-left: 0.3rem;">{{ d.servicio_nombre || d.descripcion || d.tipo_servicio }}</span>
+                        <div style="font-size: 0.7rem; color: var(--text-muted);">{{ d.proveedor_nombre || 'Sin proveedor' }}</div>
                       </div>
                       <div style="text-align: right;">
                         <div class="fw-bold" [ngClass]="'money-' + d.moneda.toLowerCase()">{{ d.saldo | number:'1.2-2' }} {{ d.moneda }}</div>
                         <div style="font-size: 0.7rem; color: var(--text-muted);">de {{ d.deuda_total | number:'1.2-2' }}</div>
                       </div>
                     </div>
+                  } @empty {
+                    <div style="text-align: center; padding: 1rem; color: var(--text-muted); font-size: 0.85rem;">Sin deudas a proveedores</div>
                   }
                   @for (t of totalesProveedores; track t.moneda) {
                     <div class="total-row">
@@ -361,29 +481,6 @@ interface ServicioForm {
           </div>
         }
 
-        <!-- TAB: VUELOS -->
-        @if (tabActiva === 'vuelos') {
-          <div class="animate-fadeInUp">
-            <h5 class="section-title">✈️ Vuelos ({{ reserva.vuelos?.length || 0 }})</h5>
-            @for (v of reserva.vuelos; track v.id) {
-              <div class="glass-card-solid mb-2">
-                <div class="d-flex justify-content-between">
-                  <div>
-                    <span class="fw-bold" style="color: var(--primary);">{{ v.aerolinea }} {{ v.nro_vuelo }}</span>
-                    <div style="font-size: 0.85rem;">{{ v.origen }} → {{ v.destino }}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">Clase: {{ v.clase || '-' }} | Reserva: {{ v.codigo_reserva || '-' }}</div>
-                  </div>
-                  <div style="text-align: right; font-size: 0.8rem;">
-                    <div>🛫 {{ v.fecha_salida || '-' }}</div>
-                    <div>🛬 {{ v.fecha_llegada || '-' }}</div>
-                  </div>
-                </div>
-              </div>
-            } @empty {
-              <div class="glass-card-solid" style="text-align: center; padding: 2rem; color: var(--text-muted);">Sin vuelos</div>
-            }
-          </div>
-        }
 
         <!-- TAB: ARCHIVOS -->
         @if (tabActiva === 'archivos') {
@@ -444,6 +541,11 @@ interface ServicioForm {
     }
     .servicio-card:hover { border-color: rgba(var(--primary-rgb), 0.3); }
     .anulado { opacity: 0.5; text-decoration: line-through; }
+    .tipo-fields-label {
+      margin-top: 0.75rem; margin-bottom: 0.5rem; font-size: 0.8rem;
+      font-weight: 700; color: var(--primary); padding: 0.35rem 0;
+      border-top: 1px solid var(--border-light);
+    }
   `]
 })
 export class ReservaDetalleComponent implements OnInit {
@@ -462,13 +564,15 @@ export class ReservaDetalleComponent implements OnInit {
   tabActiva: Tab = 'info';
   mostrarFormServicio = false;
   mostrarFormPago = false;
+  mostrarFormProveedorRapido = false;
+  editandoServicioId: number | null = null;
+  proveedorRapido = { nombre_comercial: '', contacto: '', email: '' };
 
   tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'info', label: 'Info', icon: '📋' },
     { key: 'servicios', label: 'Servicios', icon: '🏨' },
     { key: 'deudas', label: 'Deudas', icon: '📊' },
     { key: 'pagos', label: 'Pagos', icon: '💳' },
-    { key: 'vuelos', label: 'Vuelos', icon: '✈️' },
     { key: 'archivos', label: 'Archivos', icon: '📎' },
     { key: 'recibos', label: 'Recibos', icon: '🧾' }
   ];
@@ -485,7 +589,7 @@ export class ReservaDetalleComponent implements OnInit {
 
   private idReserva = 0;
 
-  constructor(private api: ApiService, private route: ActivatedRoute, private reciboPdf: ReciboPdfService) {}
+  constructor(private api: ApiService, private route: ActivatedRoute, private reciboPdf: ReciboPdfService, private router: Router, private confirmSvc: ConfirmService) {}
 
   ngOnInit(): void {
     this.idReserva = Number(this.route.snapshot.paramMap.get('id'));
@@ -527,9 +631,12 @@ export class ReservaDetalleComponent implements OnInit {
   resetSvcForm(): ServicioForm {
     return {
       tipo_servicio: 'HOTEL', descripcion: '', id_proveedor: null,
-      moneda: 'ARS', precio_cliente: 0, costo_proveedor: 0,
-      hotel_nombre: '', hotel_ciudad: '', hotel_check_in: '', hotel_check_out: '', hotel_regimen: '',
-      asistencia_compania: '', asistencia_plan: '', asistencia_fecha_desde: '', asistencia_fecha_hasta: ''
+      moneda: 'USD', precio_cliente: 0, costo_proveedor: 0,
+      hotel_nombre: '', hotel_ciudad: '', hotel_check_in: '', hotel_check_out: '', hotel_regimen: '', hotel_noches: null, hotel_categoria: '',
+      vuelo_aerolinea: '', vuelo_nro: '', vuelo_origen: '', vuelo_destino: '', vuelo_fecha_salida: '', vuelo_fecha_llegada: '', vuelo_clase: '', vuelo_codigo_reserva: '',
+      asistencia_compania: '', asistencia_plan: '', asistencia_fecha_desde: '', asistencia_fecha_hasta: '', asistencia_cobertura: '',
+      visa_pais: '', visa_tipo: '', visa_fecha_tramite: '', visa_nro_tramite: '',
+      crucero_naviera: '', crucero_barco: '', crucero_itinerario: '', crucero_cabina: '', crucero_fecha_embarque: '', crucero_fecha_desembarque: ''
     };
   }
 
@@ -538,17 +645,81 @@ export class ReservaDetalleComponent implements OnInit {
   }
 
   guardarServicio(): void {
-    this.api.crearServicio({ id_reserva: this.idReserva, ...this.svcForm } as Partial<ServicioDetallado>).subscribe({
-      next: () => {
-        this.mostrarFormServicio = false;
-        this.svcForm = this.resetSvcForm();
-        this.cargarTodo();
-      }
+    if (this.editandoServicioId) {
+      // Mode: EDIT
+      const { tipo_servicio, ...updateData } = this.svcForm;
+      this.api.updateServicio(this.editandoServicioId, { tipo_servicio, ...updateData } as Partial<ServicioDetallado>).subscribe({
+        next: () => {
+          this.cancelarFormServicio();
+          this.cargarTodo();
+        }
+      });
+    } else {
+      // Mode: CREATE
+      this.api.crearServicio({ id_reserva: this.idReserva, ...this.svcForm } as Partial<ServicioDetallado>).subscribe({
+        next: () => {
+          this.cancelarFormServicio();
+          this.cargarTodo();
+        }
+      });
+    }
+  }
+
+  editarServicio(s: ServicioDetallado): void {
+    this.editandoServicioId = s.id;
+    this.mostrarFormServicio = true;
+    this.svcForm = {
+      tipo_servicio: s.tipo_servicio, descripcion: s.descripcion || '', id_proveedor: s.id_proveedor,
+      moneda: s.moneda, precio_cliente: s.precio_cliente, costo_proveedor: s.costo_proveedor,
+      hotel_nombre: s.hotel_nombre || '', hotel_ciudad: s.hotel_ciudad || '', hotel_check_in: s.hotel_check_in ? s.hotel_check_in.substring(0,10) : '', hotel_check_out: s.hotel_check_out ? s.hotel_check_out.substring(0,10) : '', hotel_regimen: s.hotel_regimen || '', hotel_noches: s.hotel_noches ?? null, hotel_categoria: s.hotel_categoria || '',
+      vuelo_aerolinea: s.vuelo_aerolinea || '', vuelo_nro: s.vuelo_nro || '', vuelo_origen: s.vuelo_origen || '', vuelo_destino: s.vuelo_destino || '', vuelo_fecha_salida: s.vuelo_fecha_salida || '', vuelo_fecha_llegada: s.vuelo_fecha_llegada || '', vuelo_clase: s.vuelo_clase || '', vuelo_codigo_reserva: s.vuelo_codigo_reserva || '',
+      asistencia_compania: s.asistencia_compania || '', asistencia_plan: s.asistencia_plan || '', asistencia_fecha_desde: s.asistencia_fecha_desde ? s.asistencia_fecha_desde.substring(0,10) : '', asistencia_fecha_hasta: s.asistencia_fecha_hasta ? s.asistencia_fecha_hasta.substring(0,10) : '', asistencia_cobertura: s.asistencia_cobertura || '',
+      visa_pais: s.visa_pais || '', visa_tipo: s.visa_tipo || '', visa_fecha_tramite: s.visa_fecha_tramite ? s.visa_fecha_tramite.substring(0,10) : '', visa_nro_tramite: s.visa_nro_tramite || '',
+      crucero_naviera: s.crucero_naviera || '', crucero_barco: s.crucero_barco || '', crucero_itinerario: s.crucero_itinerario || '', crucero_cabina: s.crucero_cabina || '', crucero_fecha_embarque: s.crucero_fecha_embarque ? s.crucero_fecha_embarque.substring(0,10) : '', crucero_fecha_desembarque: s.crucero_fecha_desembarque ? s.crucero_fecha_desembarque.substring(0,10) : ''
+    };
+  }
+
+  async eliminarServicio(id: number): Promise<void> {
+    const ok = await this.confirmSvc.confirm({
+      title: 'Eliminar Servicio',
+      message: '¿Eliminar este servicio? Se eliminarán también las deudas asociadas.',
+      confirmText: 'Sí, eliminar',
+      type: 'danger'
+    });
+    if (!ok) return;
+    this.api.deleteServicio(id).subscribe({
+      next: () => { this.confirmSvc.toast('Servicio eliminado'); this.cargarTodo(); },
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al eliminar', 'error')
     });
   }
 
+  cancelarFormServicio(): void {
+    this.mostrarFormServicio = false;
+    this.editandoServicioId = null;
+    this.svcForm = this.resetSvcForm();
+  }
+
   getNombreServicio(s: ServicioDetallado): string {
-    return s.hotel_nombre || s.vuelo_aerolinea || s.asistencia_compania || s.crucero_naviera || s.visa_pais || s.descripcion || s.tipo_servicio;
+    switch (s.tipo_servicio) {
+      case 'HOTEL': return s.hotel_nombre || 'Hotel';
+      case 'VUELO': return [s.vuelo_aerolinea, s.vuelo_nro, s.vuelo_origen && s.vuelo_destino ? `${s.vuelo_origen} → ${s.vuelo_destino}` : ''].filter(Boolean).join(' ') || 'Vuelo';
+      case 'ASISTENCIA': return [s.asistencia_compania, s.asistencia_plan].filter(Boolean).join(' — ') || 'Asistencia';
+      case 'VISA': return s.visa_pais ? `Visa ${s.visa_pais}` : 'Visa';
+      case 'CRUCERO': return [s.crucero_naviera, s.crucero_barco].filter(Boolean).join(' — ') || 'Crucero';
+      default: return s.descripcion || s.tipo_servicio;
+    }
+  }
+
+  crearProveedorRapido(): void {
+    if (!this.proveedorRapido.nombre_comercial) return;
+    this.api.crearProveedor(this.proveedorRapido as any).subscribe({
+      next: (nuevo: any) => {
+        this.api.getProveedores().subscribe({ next: (p) => this.proveedores = p });
+        this.svcForm.id_proveedor = nuevo.id;
+        this.mostrarFormProveedorRapido = false;
+        this.proveedorRapido = { nombre_comercial: '', contacto: '', email: '' };
+      }
+    });
   }
 
   // Pagos
@@ -580,16 +751,39 @@ export class ReservaDetalleComponent implements OnInit {
     });
   }
 
-  anularPago(id: number): void {
-    if (confirm('¿Anular este pago? Se revertirá el monto en la deuda.')) {
-      this.api.anularPago(id).subscribe({ next: () => this.cargarTodo() });
-    }
+  async anularPago(id: number): Promise<void> {
+    const ok = await this.confirmSvc.confirm({
+      title: 'Anular Pago',
+      message: '¿Anular este pago? Se revertirá el monto en la deuda.',
+      confirmText: 'Sí, anular',
+      type: 'warning'
+    });
+    if (!ok) return;
+    this.api.anularPago(id).subscribe({
+      next: () => { this.confirmSvc.toast('Pago anulado correctamente'); this.cargarTodo(); },
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al anular pago', 'error')
+    });
+  }
+
+  async eliminarReserva(): Promise<void> {
+    if (!this.reserva) return;
+    const ok = await this.confirmSvc.confirm({
+      title: 'Eliminar Reserva',
+      message: `¿Eliminar la Reserva #${this.reserva.id}? Esta acción no se puede deshacer.`,
+      confirmText: 'Sí, eliminar',
+      type: 'danger'
+    });
+    if (!ok) return;
+    this.api.deleteReserva(this.reserva.id).subscribe({
+      next: () => { this.confirmSvc.toast('Reserva eliminada'); this.router.navigate(['/reservas']); },
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al eliminar', 'error')
+    });
   }
 
   getNombreDeuda(d: DeudaClienteDetalle | DeudaProveedorAgrupada): string {
-    if ('servicio_nombre' in d) return d.servicio_nombre || d.tipo_servicio || 'Servicio';
-    if ('proveedor_nombre' in d) return d.proveedor_nombre || 'Proveedor';
-    return 'Deuda';
+    const name = d.servicio_nombre || d.tipo_servicio || 'Servicio';
+    if ('proveedor_nombre' in d && d.proveedor_nombre) return `${name} — ${d.proveedor_nombre}`;
+    return name;
   }
 
   deudasParaPago(): (DeudaClienteDetalle | DeudaProveedorAgrupada)[] {
@@ -597,8 +791,7 @@ export class ReservaDetalleComponent implements OnInit {
   }
 
   getDeudaId(d: DeudaClienteDetalle | DeudaProveedorAgrupada): number | null {
-    if ('id' in d) return d.id;
-    return d.id_proveedor;
+    return d.id;
   }
 
   // Archivos

@@ -1,8 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
+import { ConfirmService } from '../../services/confirm.service';
 import { Reserva, PaginatedResponse } from '../../models';
 
 @Component({
@@ -16,7 +17,12 @@ import { Reserva, PaginatedResponse } from '../../models';
           <h1 class="page-title">Reservas</h1>
           <p class="page-subtitle">{{ total }} reservas</p>
         </div>
-        <a routerLink="/reservas/nuevo" class="btn-elite"><span>➕ Nueva Reserva</span></a>
+        <div class="d-flex gap-2">
+          @if (reservas.length > 0) {
+            <button class="btn-elite-outline" style="color: #ef4444; border-color: #ef4444;" (click)="eliminarTodas()">🗑️ Eliminar Todas</button>
+          }
+          <a routerLink="/reservas/nuevo" class="btn-elite"><span>➕ Nueva Reserva</span></a>
+        </div>
       </div>
 
       <div class="glass-card-solid mb-3" style="padding: 1rem;">
@@ -40,10 +46,13 @@ import { Reserva, PaginatedResponse } from '../../models';
                 <td>{{ r.id }}</td>
                 <td style="font-weight: 600;">{{ r.titular_nombre }}</td>
                 <td>{{ r.destino_final || '-' }}</td>
-                <td>{{ r.fecha_viaje_salida || '-' }}</td>
+                <td>{{ r.fecha_viaje_salida ? (r.fecha_viaje_salida | date:'dd/MM/yyyy') : '-' }}</td>
                 <td><span class="status-pill" [ngClass]="r.estado.toLowerCase()">{{ r.estado }}</span></td>
                 <td>
-                  <a [routerLink]="['/reservas', r.id]" class="btn-elite-outline" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">Ver</a>
+                  <div class="d-flex gap-1">
+                    <a [routerLink]="['/reservas', r.id]" class="btn-elite-outline" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">Ver</a>
+                    <button class="btn-elite-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; color: #ef4444; border-color: #ef4444;" (click)="eliminar(r)">🗑️</button>
+                  </div>
                 </td>
               </tr>
             } @empty {
@@ -69,7 +78,7 @@ export class ReservasListaComponent implements OnInit {
   busqueda = ''; estadoFiltro = '';
   private timeout: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private router: Router, private confirm: ConfirmService) {}
   ngOnInit(): void { this.cargar(); }
 
   cargar(): void {
@@ -84,4 +93,32 @@ export class ReservasListaComponent implements OnInit {
   }
 
   cambiarPagina(p: number): void { this.page = p; this.cargar(); }
+
+  async eliminar(r: Reserva): Promise<void> {
+    const ok = await this.confirm.confirm({
+      title: 'Eliminar Reserva',
+      message: `¿Estás seguro de eliminar la Reserva #${r.id} de ${r.titular_nombre || 'sin titular'}?`,
+      confirmText: 'Sí, eliminar',
+      type: 'danger'
+    });
+    if (!ok) return;
+    this.api.deleteReserva(r.id).subscribe({
+      next: () => { this.confirm.toast('Reserva eliminada correctamente'); this.cargar(); },
+      error: (err) => this.confirm.toast(err.error?.error || 'Error al eliminar', 'error')
+    });
+  }
+
+  async eliminarTodas(): Promise<void> {
+    const ok = await this.confirm.confirm({
+      title: 'Eliminar TODAS las Reservas',
+      message: '¿Estás seguro de eliminar TODAS las reservas? Esta acción no se puede deshacer.',
+      confirmText: 'Sí, eliminar todas',
+      type: 'danger'
+    });
+    if (!ok) return;
+    this.api.deleteAllReservas().subscribe({
+      next: (r) => { this.confirm.toast(r.mensaje); this.cargar(); },
+      error: (err) => this.confirm.toast(err.error?.error || 'Error al eliminar', 'error')
+    });
+  }
 }

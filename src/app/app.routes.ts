@@ -14,6 +14,7 @@ export const routes: Routes = [
       { path: 'dashboard', loadComponent: () => import('./components/dashboard/dashboard').then(m => m.DashboardComponent) },
       { path: 'clientes', loadComponent: () => import('./components/clientes-lista/clientes-lista').then(m => m.ClientesListaComponent) },
       { path: 'clientes/nuevo', loadComponent: () => import('./components/cliente-nuevo/cliente-nuevo').then(m => m.ClienteNuevoComponent) },
+      { path: 'clientes/editar/:id', loadComponent: () => import('./components/cliente-nuevo/cliente-nuevo').then(m => m.ClienteNuevoComponent) },
       { path: 'clientes/detalle/:id', loadComponent: () => import('./components/cliente-detalle/cliente-detalle').then(m => m.ClienteDetalleComponent) },
       { path: 'clientes/importar', loadComponent: () => import('./components/import-clientes/import-clientes').then(m => m.ImportClientesComponent) },
       { path: 'proveedores', loadComponent: () => import('./components/proveedores/proveedores').then(m => m.ProveedoresComponent) },

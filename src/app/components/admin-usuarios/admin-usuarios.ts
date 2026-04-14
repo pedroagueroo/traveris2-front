@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
+import { ConfirmService } from '../../services/confirm.service';
 import { Usuario, AgenciaConfig } from '../../models';
 
 @Component({
@@ -103,7 +104,7 @@ export class AdminUsuariosComponent implements OnInit {
   editandoId: number | null = null;
   form = { nombre_usuario: '', password: '', rol: 'EMPRESA', empresa_nombre: null as string | null };
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private confirmSvc: ConfirmService) {}
 
   ngOnInit(): void {
     this.cargar();
@@ -131,19 +132,27 @@ export class AdminUsuariosComponent implements OnInit {
       const data: Record<string, unknown> = { rol: this.form.rol, empresa_nombre: this.form.empresa_nombre };
       if (this.form.password) data['password'] = this.form.password;
       this.api.updateUsuario(this.editandoId, data as Partial<Usuario & { password: string }>).subscribe({
-        next: () => { this.mostrarForm = false; this.cargar(); }
+        next: () => { this.mostrarForm = false; this.confirmSvc.toast('Usuario actualizado'); this.cargar(); }
       });
     } else {
-      if (!this.form.password) { alert('La contraseña es requerida'); return; }
+      if (!this.form.password) { this.confirmSvc.toast('La contraseña es requerida', 'error'); return; }
       this.api.crearUsuario(this.form).subscribe({
-        next: () => { this.mostrarForm = false; this.cargar(); }
+        next: () => { this.mostrarForm = false; this.confirmSvc.toast('Usuario creado'); this.cargar(); }
       });
     }
   }
 
-  eliminar(id: number): void {
-    if (confirm('¿Eliminar este usuario?')) {
-      this.api.deleteUsuario(id).subscribe({ next: () => this.cargar() });
-    }
+  async eliminar(id: number): Promise<void> {
+    const ok = await this.confirmSvc.confirm({
+      title: 'Eliminar Usuario',
+      message: '¿Eliminar este usuario? Esta acción no se puede deshacer.',
+      confirmText: 'Sí, eliminar',
+      type: 'danger'
+    });
+    if (!ok) return;
+    this.api.deleteUsuario(id).subscribe({
+      next: () => { this.confirmSvc.toast('Usuario eliminado'); this.cargar(); },
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al eliminar', 'error')
+    });
   }
 }

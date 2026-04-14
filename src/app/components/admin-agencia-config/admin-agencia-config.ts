@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService } from '../../services/api.service';
+import { ConfirmService } from '../../services/confirm.service';
 import { AgenciaConfig, ReciboConfig } from '../../models';
 
 @Component({
@@ -160,7 +161,7 @@ export class AdminAgenciaConfigComponent implements OnInit {
     fontFamily: 'Inter', logoPosition: 'left', showArcaLogo: true, extraText: ''
   };
 
-  constructor(private api: ApiService, private route: ActivatedRoute) {}
+  constructor(private api: ApiService, private route: ActivatedRoute, private confirmSvc: ConfirmService) {}
 
   ngOnInit(): void {
     this.empresaNombre = this.route.snapshot.paramMap.get('empresa') || '';
@@ -175,7 +176,7 @@ export class AdminAgenciaConfigComponent implements OnInit {
   guardarAgencia(): void {
     if (!this.agencia) return;
     this.api.updateAgenciaConfig(this.empresaNombre, this.agencia).subscribe({
-      next: () => alert('✅ Agencia actualizada')
+      next: () => this.confirmSvc.toast('Agencia actualizada correctamente')
     });
   }
 
@@ -189,7 +190,7 @@ export class AdminAgenciaConfigComponent implements OnInit {
 
   guardarReciboConfig(): void {
     this.api.updateReciboConfig(this.empresaNombre, this.reciboConfig).subscribe({
-      next: () => alert('✅ Configuración de recibo actualizada')
+      next: () => this.confirmSvc.toast('Configuración de recibo actualizada')
     });
   }
 }

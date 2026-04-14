@@ -1,4 +1,5 @@
-import { Directive, ElementRef, HostListener } from '@angular/core';
+import { Directive, ElementRef, HostListener, Optional, Self } from '@angular/core';
+import { NgControl } from '@angular/forms';
 
 /**
  * Directiva para formatear DNI argentino: XX.XXX.XXX
@@ -9,10 +10,18 @@ import { Directive, ElementRef, HostListener } from '@angular/core';
   standalone: true
 })
 export class DniMaskDirective {
-  constructor(private el: ElementRef<HTMLInputElement>) {}
+  private formatting = false;
 
-  @HostListener('input', ['$event'])
-  onInput(event: Event): void {
+  constructor(
+    private el: ElementRef<HTMLInputElement>,
+    @Optional() @Self() private ngControl: NgControl
+  ) {}
+
+  @HostListener('input')
+  onInput(): void {
+    if (this.formatting) return;
+    this.formatting = true;
+
     const input = this.el.nativeElement;
     let value = input.value.replace(/\D/g, '');
 
@@ -27,6 +36,12 @@ export class DniMaskDirective {
     }
 
     input.value = value;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // Actualizar ngModel sin re-disparar el listener
+    if (this.ngControl?.control) {
+      this.ngControl.control.setValue(value, { emitEvent: false });
+    }
+
+    this.formatting = false;
   }
 }

@@ -39,15 +39,20 @@ import { ThemeService } from '../../services/theme.service';
 
           <div class="form-group">
             <label class="form-label-elite">Contraseña</label>
-            <input
-              type="password"
-              class="form-control-elite w-100"
-              [(ngModel)]="password"
-              name="password"
-              placeholder="Ingrese su contraseña"
-              required
-              autocomplete="current-password"
-            />
+            <div class="password-wrapper">
+              <input
+                [type]="mostrarPassword ? 'text' : 'password'"
+                class="form-control-elite w-100"
+                [(ngModel)]="password"
+                name="password"
+                placeholder="Ingrese su contraseña"
+                required
+                autocomplete="current-password"
+              />
+              <button type="button" class="password-toggle" (click)="mostrarPassword = !mostrarPassword">
+                {{ mostrarPassword ? '🙈' : '👁️' }}
+              </button>
+            </div>
           </div>
 
           <button type="submit" class="btn-elite w-100" [disabled]="cargando">
@@ -119,6 +124,33 @@ import { ThemeService } from '../../services/theme.service';
       flex-direction: column;
     }
 
+    .password-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .password-wrapper input {
+      padding-right: 2.75rem;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 0.5rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0.25rem;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+      line-height: 1;
+    }
+
+    .password-toggle:hover {
+      opacity: 1;
+    }
+
     .alert-error {
       background: rgba(239, 68, 68, 0.1);
       border: 1px solid rgba(239, 68, 68, 0.3);
@@ -152,6 +184,7 @@ export class LoginComponent {
   password = '';
   error = '';
   cargando = false;
+  mostrarPassword = false;
 
   constructor(
     private auth: AuthService,

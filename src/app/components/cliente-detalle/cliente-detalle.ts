@@ -13,7 +13,7 @@ import { Cliente } from '../../models';
     <div class="animate-fadeInUp">
       <div class="page-header">
         <div>
-          <h1 class="page-title">{{ cliente?.nombre_completo || 'Cargando...' }}</h1>
+          <h1 class="page-title">{{ cliente?.apellido }} {{ cliente?.nombre }}</h1>
           <p class="page-subtitle">Detalle del cliente</p>
         </div>
         <div class="d-flex gap-2">
@@ -100,7 +100,7 @@ export class ClienteDetalleComponent implements OnInit {
     if (!this.cliente) return;
     const ok = await this.confirm.confirm({
       title: 'Eliminar Cliente',
-      message: `¿Estás seguro de eliminar a "${this.cliente.nombre_completo}"? Esta acción no se puede deshacer.`,
+      message: `¿Estás seguro de eliminar a "${this.cliente.apellido} ${this.cliente.nombre}"? Esta acción no se puede deshacer.`,
       confirmText: 'Sí, eliminar',
       type: 'danger'
     });

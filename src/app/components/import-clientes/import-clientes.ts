@@ -68,14 +68,15 @@ import { Cliente } from '../../models';
         <div class="glass-card-solid" style="padding: 0; overflow-x: auto;">
           <table class="table-premium">
             <thead><tr>
-              <th>Fila</th><th>Nombre</th><th>DNI</th><th>Email</th><th>Teléfono</th>
+              <th>Fila</th><th>Apellido</th><th>Nombre</th><th>DNI</th><th>Email</th><th>Teléfono</th>
               <th>Nac.</th><th>CUIT</th><th>Pasaporte</th><th>Estado</th>
             </tr></thead>
             <tbody>
               @for (c of preview.clientes; track c.fila) {
                 <tr [class.invalid-row]="!c.valido">
                   <td>{{ c.fila }}</td>
-                  <td class="fw-semibold">{{ c.nombre_completo || '—' }}</td>
+                  <td class="fw-semibold">{{ c.apellido || '—' }}</td>
+                  <td>{{ c.nombre || '—' }}</td>
                   <td>{{ c.dni_pasaporte || '-' }}</td>
                   <td style="font-size: 0.8rem;">{{ c.email || '-' }}</td>
                   <td>{{ c.telefono || '-' }}</td>

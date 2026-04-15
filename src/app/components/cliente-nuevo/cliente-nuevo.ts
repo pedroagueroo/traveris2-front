@@ -7,7 +7,8 @@ import { Cliente } from '../../models';
 import { DniMaskDirective } from '../../directives';
 
 interface ClienteForm {
-  nombre_completo: string;
+  nombre: string;
+  apellido: string;
   dni_pasaporte: string;
   email: string;
   telefono: string;
@@ -36,9 +37,13 @@ interface ClienteForm {
       <div class="glass-card-solid">
         <form (ngSubmit)="guardar()">
           <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label-elite">Nombre Completo *</label>
-              <input type="text" class="form-control-elite w-100" [(ngModel)]="cliente.nombre_completo" name="nombre" required />
+            <div class="col-md-3">
+              <label class="form-label-elite">Apellido *</label>
+              <input type="text" class="form-control-elite w-100" [(ngModel)]="cliente.apellido" name="apellido" required />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label-elite">Nombre *</label>
+              <input type="text" class="form-control-elite w-100" [(ngModel)]="cliente.nombre" name="nombre" required />
             </div>
             <div class="col-md-3">
               <label class="form-label-elite">DNI / Pasaporte</label>
@@ -116,7 +121,7 @@ interface ClienteForm {
 })
 export class ClienteNuevoComponent implements OnInit {
   cliente: ClienteForm = {
-    nombre_completo: '', dni_pasaporte: '', email: '', telefono: '',
+    nombre: '', apellido: '', dni_pasaporte: '', email: '', telefono: '',
     fecha_nacimiento: null, cuit_cuil: '', nacionalidad: '', sexo: '',
     pref_asiento: '', pref_comida: '', pasaporte_nro: '',
     pasaporte_emision: null, pasaporte_vencimiento: null, observaciones_salud: ''
@@ -135,7 +140,8 @@ export class ClienteNuevoComponent implements OnInit {
       this.api.getCliente(this.clienteId).subscribe({
         next: (c) => {
           this.cliente = {
-            nombre_completo: c.nombre_completo || '',
+            nombre: c.nombre || '',
+            apellido: c.apellido || '',
             dni_pasaporte: c.dni_pasaporte || '',
             email: c.email || '',
             telefono: c.telefono || '',
@@ -156,7 +162,7 @@ export class ClienteNuevoComponent implements OnInit {
   }
 
   guardar(): void {
-    if (!this.cliente.nombre_completo) return;
+    if (!this.cliente.nombre || !this.cliente.apellido) return;
     this.guardando = true;
 
     // Sanitize empty strings to null

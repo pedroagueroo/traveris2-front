@@ -33,12 +33,13 @@ import { Cliente, PaginatedResponse } from '../../models';
       <div class="glass-card-solid" style="padding: 0; overflow: hidden;">
         <table class="table-premium">
           <thead>
-            <tr><th>Nombre</th><th>DNI / Pasaporte</th><th>Email</th><th>Teléfono</th><th>Acciones</th></tr>
+            <tr><th>Apellido</th><th>Nombre</th><th>DNI / Pasaporte</th><th>Email</th><th>Teléfono</th><th>Acciones</th></tr>
           </thead>
           <tbody>
             @for (c of clientes; track c.id) {
               <tr>
-                <td style="font-weight: 600;">{{ c.nombre_completo }}</td>
+                <td style="font-weight: 600;">{{ c.apellido || '' }}</td>
+                <td>{{ c.nombre || '' }}</td>
                 <td>{{ c.dni_pasaporte || '-' }}</td>
                 <td>{{ c.email || '-' }}</td>
                 <td>{{ c.telefono || '-' }}</td>
@@ -51,7 +52,7 @@ import { Cliente, PaginatedResponse } from '../../models';
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">No se encontraron clientes</td></tr>
+              <tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No se encontraron clientes</td></tr>
             }
           </tbody>
         </table>

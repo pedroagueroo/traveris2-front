@@ -116,7 +116,7 @@ interface ServicioForm {
               </div>
             </div>
             <div class="col-lg-4">
-              <div class="glass-card-solid">
+              <div class="glass-card-solid mb-3">
                 <h5 class="section-title">👥 Pasajeros ({{ reserva.pasajeros?.length || 0 }})</h5>
                 @for (p of reserva.pasajeros; track p.id) {
                   <div class="pasajero-item">
@@ -126,6 +126,24 @@ interface ServicioForm {
                   </div>
                 }
               </div>
+
+              <!-- Servicios resumen en Info -->
+              @if (servicios.length > 0) {
+                <div class="glass-card-solid">
+                  <h5 class="section-title">📦 Servicios ({{ servicios.length }})</h5>
+                  @for (s of servicios; track s.id) {
+                    <div class="pasajero-item">
+                      <div class="d-flex justify-content-between">
+                        <span class="fw-semibold">{{ getNombreServicio(s) }}</span>
+                        <span class="fw-bold" [ngClass]="'money-' + s.moneda.toLowerCase()" style="font-size:0.8rem;">{{ s.precio_cliente | number:'1.2-2' }} {{ s.moneda }}</span>
+                      </div>
+                      <div style="font-size: 0.72rem; color: var(--text-muted);">
+                        {{ getDetalleServicio(s) }}
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
             </div>
           </div>
         }
@@ -308,12 +326,16 @@ interface ServicioForm {
             @for (s of servicios; track s.id) {
               <div class="glass-card-solid mb-2 servicio-card">
                 <div class="d-flex justify-content-between align-items-start">
-                  <div>
+                  <div style="flex:1;">
                     <span class="status-pill abierto" style="font-size: 0.65rem;">{{ s.tipo_servicio }}</span>
                     <h6 class="mt-1 mb-0 fw-bold">{{ getNombreServicio(s) }}</h6>
                     <small style="color: var(--text-muted);">{{ s.proveedor_nombre || 'Sin proveedor' }}</small>
+                    <!-- Detalles del servicio -->
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.4rem;">
+                      {{ getDetalleServicio(s) }}
+                    </div>
                   </div>
-                  <div style="text-align: right;">
+                  <div style="text-align: right; min-width: 140px;">
                     <div style="font-size: 0.75rem; color: var(--text-muted);">Cliente: <span class="fw-bold" [ngClass]="'money-' + s.moneda.toLowerCase()">{{ s.precio_cliente | number:'1.2-2' }} {{ s.moneda }}</span></div>
                     <div style="font-size: 0.75rem; color: var(--text-muted);">Costo: <span class="fw-bold">{{ s.costo_proveedor | number:'1.2-2' }} {{ s.moneda }}</span></div>
                     <div style="font-size: 0.75rem;" [style.color]="(s.precio_cliente - s.costo_proveedor) >= 0 ? 'var(--success)' : 'var(--danger)'">
@@ -792,6 +814,43 @@ export class ReservaDetalleComponent implements OnInit {
       case 'CRUCERO': return [s.crucero_naviera, s.crucero_barco].filter(Boolean).join(' — ') || 'Crucero';
       default: return s.descripcion || s.tipo_servicio;
     }
+  }
+
+  getDetalleServicio(s: ServicioDetallado): string {
+    const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+    const parts: string[] = [];
+    switch (s.tipo_servicio) {
+      case 'HOTEL':
+        if (s.hotel_ciudad) parts.push(s.hotel_ciudad);
+        if (s.hotel_check_in || s.hotel_check_out) parts.push(`${fmt(s.hotel_check_in)} → ${fmt(s.hotel_check_out)}`);
+        if (s.hotel_noches) parts.push(`${s.hotel_noches} noches`);
+        if (s.hotel_regimen) parts.push(s.hotel_regimen);
+        if (s.hotel_categoria) parts.push(`${s.hotel_categoria}⭐`);
+        break;
+      case 'VUELO':
+        if (s.vuelo_origen && s.vuelo_destino) parts.push(`${s.vuelo_origen} → ${s.vuelo_destino}`);
+        if (s.vuelo_fecha_salida) parts.push(`Salida: ${fmt(s.vuelo_fecha_salida)}`);
+        if (s.vuelo_fecha_llegada) parts.push(`Llegada: ${fmt(s.vuelo_fecha_llegada)}`);
+        if (s.vuelo_clase) parts.push(s.vuelo_clase);
+        if (s.vuelo_codigo_reserva) parts.push(`Código: ${s.vuelo_codigo_reserva}`);
+        break;
+      case 'ASISTENCIA':
+        if (s.asistencia_fecha_desde || s.asistencia_fecha_hasta) parts.push(`${fmt(s.asistencia_fecha_desde)} → ${fmt(s.asistencia_fecha_hasta)}`);
+        if (s.asistencia_cobertura) parts.push(s.asistencia_cobertura);
+        break;
+      case 'VISA':
+        if (s.visa_tipo) parts.push(s.visa_tipo);
+        if (s.visa_fecha_tramite) parts.push(`Trámite: ${fmt(s.visa_fecha_tramite)}`);
+        if (s.visa_nro_tramite) parts.push(`Nro: ${s.visa_nro_tramite}`);
+        break;
+      case 'CRUCERO':
+        if (s.crucero_itinerario) parts.push(s.crucero_itinerario);
+        if (s.crucero_cabina) parts.push(`Cabina: ${s.crucero_cabina}`);
+        if (s.crucero_fecha_embarque || s.crucero_fecha_desembarque) parts.push(`${fmt(s.crucero_fecha_embarque)} → ${fmt(s.crucero_fecha_desembarque)}`);
+        break;
+    }
+    if (s.descripcion && !parts.length) parts.push(s.descripcion);
+    return parts.join(' · ') || s.descripcion || '';
   }
 
   crearProveedorRapido(): void {

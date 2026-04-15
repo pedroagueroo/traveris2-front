@@ -56,6 +56,8 @@ export interface ReciboConfig {
 // ─── CLIENTE ─────────────────────────────────────────────────────────────────
 export interface Cliente {
   id: number;
+  nombre: string;
+  apellido: string;
   nombre_completo: string;
   dni_pasaporte: string | null;
   email: string | null;

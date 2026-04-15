@@ -45,7 +45,7 @@ interface PasajeroForm {
                     <div class="search-dropdown">
                       @for (c of clientesFiltrados(busquedaTitular); track c.id) {
                         <div class="search-dropdown-item" (mousedown)="seleccionarTitular(c)">
-                          <span class="fw-semibold">{{ c.nombre_completo }}</span>
+                          <span class="fw-semibold">{{ c.apellido }} {{ c.nombre }}</span>
                           <span class="text-muted" style="font-size:0.75rem;">{{ c.dni_pasaporte || '' }}</span>
                         </div>
                       } @empty {
@@ -105,7 +105,8 @@ interface PasajeroForm {
               <button type="button" class="btn-remove" (click)="mostrarFormClienteRapido = null">✕</button>
             </div>
             <div class="row g-2">
-              <div class="col-md-4"><input class="form-control-elite w-100" placeholder="Nombre completo *" [(ngModel)]="clienteRapido.nombre_completo" name="cr_nombre" /></div>
+              <div class="col-md-2"><input class="form-control-elite w-100" placeholder="Apellido *" [(ngModel)]="clienteRapido.apellido" name="cr_apellido" /></div>
+              <div class="col-md-2"><input class="form-control-elite w-100" placeholder="Nombre *" [(ngModel)]="clienteRapido.nombre" name="cr_nombre" /></div>
               <div class="col-md-3"><input class="form-control-elite w-100" placeholder="DNI / Pasaporte" [(ngModel)]="clienteRapido.dni_pasaporte" name="cr_dni" /></div>
               <div class="col-md-3"><input class="form-control-elite w-100" placeholder="Email" [(ngModel)]="clienteRapido.email" name="cr_email" /></div>
               <div class="col-md-2 d-flex align-items-end">
@@ -145,7 +146,7 @@ interface PasajeroForm {
                   <div class="search-dropdown">
                     @for (c of clientesFiltrados(busquedasPasajeros[i]); track c.id) {
                       <div class="search-dropdown-item" (mousedown)="seleccionarPasajero(i, c)">
-                        <span class="fw-semibold">{{ c.nombre_completo }}</span>
+                        <span class="fw-semibold">{{ c.apellido }} {{ c.nombre }}</span>
                         <span class="text-muted" style="font-size:0.75rem;">{{ c.dni_pasaporte || '' }}</span>
                       </div>
                     } @empty {
@@ -173,7 +174,8 @@ interface PasajeroForm {
               <button type="button" class="btn-remove" (click)="mostrarFormClienteRapido = null">✕</button>
             </div>
             <div class="row g-2">
-              <div class="col-md-4"><input class="form-control-elite w-100" placeholder="Nombre completo *" [(ngModel)]="clienteRapido.nombre_completo" name="crp_nombre" /></div>
+              <div class="col-md-2"><input class="form-control-elite w-100" placeholder="Apellido *" [(ngModel)]="clienteRapido.apellido" name="crp_apellido" /></div>
+              <div class="col-md-2"><input class="form-control-elite w-100" placeholder="Nombre *" [(ngModel)]="clienteRapido.nombre" name="crp_nombre" /></div>
               <div class="col-md-3"><input class="form-control-elite w-100" placeholder="DNI / Pasaporte" [(ngModel)]="clienteRapido.dni_pasaporte" name="crp_dni" /></div>
               <div class="col-md-3"><input class="form-control-elite w-100" placeholder="Email" [(ngModel)]="clienteRapido.email" name="crp_email" /></div>
               <div class="col-md-2 d-flex align-items-end">
@@ -253,7 +255,7 @@ export class ReservaNuevaComponent implements OnInit {
 
   // Quick client creation
   mostrarFormClienteRapido: 'titular' | 'pasajero' | null = null;
-  clienteRapido = { nombre_completo: '', dni_pasaporte: '', email: '' };
+  clienteRapido = { nombre: '', apellido: '', dni_pasaporte: '', email: '' };
 
   form = {
     id_titular: null as number | null,
@@ -324,13 +326,15 @@ export class ReservaNuevaComponent implements OnInit {
     const term = busqueda.toLowerCase();
     return this.clientes.filter(c =>
       (c.nombre_completo || '').toLowerCase().includes(term) ||
+      (c.apellido || '').toLowerCase().includes(term) ||
+      (c.nombre || '').toLowerCase().includes(term) ||
       (c.dni_pasaporte || '').toLowerCase().includes(term)
     ).slice(0, 15);
   }
 
   getNombreCliente(id: number): string {
     const c = this.clientes.find(cl => cl.id === id);
-    return c ? `${c.nombre_completo} — ${c.dni_pasaporte || ''}` : `Cliente #${id}`;
+    return c ? `${c.apellido || ''} ${c.nombre || ''} — ${c.dni_pasaporte || ''}` : `Cliente #${id}`;
   }
 
   seleccionarTitular(c: Partial<Cliente>): void {
@@ -358,7 +362,7 @@ export class ReservaNuevaComponent implements OnInit {
   }
 
   crearClienteRapido(target: 'titular' | 'pasajero'): void {
-    if (!this.clienteRapido.nombre_completo) return;
+    if (!this.clienteRapido.nombre && !this.clienteRapido.apellido) return;
     this.api.crearCliente(this.clienteRapido as any).subscribe({
       next: (nuevo: any) => {
         // Reload clients list
@@ -375,7 +379,7 @@ export class ReservaNuevaComponent implements OnInit {
           }
         });
         this.mostrarFormClienteRapido = null;
-        this.clienteRapido = { nombre_completo: '', dni_pasaporte: '', email: '' };
+        this.clienteRapido = { nombre: '', apellido: '', dni_pasaporte: '', email: '' };
       }
     });
   }

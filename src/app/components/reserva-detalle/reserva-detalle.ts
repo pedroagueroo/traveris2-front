@@ -324,27 +324,185 @@ interface ServicioForm {
 
             <!-- Lista de servicios -->
             @for (s of servicios; track s.id) {
-              <div class="glass-card-solid mb-2 servicio-card">
-                <div class="d-flex justify-content-between align-items-start">
-                  <div style="flex:1;">
+              <div class="glass-card-solid mb-3 servicio-card">
+                <!-- Header -->
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
                     <span class="status-pill abierto" style="font-size: 0.65rem;">{{ s.tipo_servicio }}</span>
                     <h6 class="mt-1 mb-0 fw-bold">{{ getNombreServicio(s) }}</h6>
-                    <small style="color: var(--text-muted);">{{ s.proveedor_nombre || 'Sin proveedor' }}</small>
-                    <!-- Detalles del servicio -->
-                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.4rem;">
-                      {{ getDetalleServicio(s) }}
-                    </div>
                   </div>
-                  <div style="text-align: right; min-width: 140px;">
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">Cliente: <span class="fw-bold" [ngClass]="'money-' + s.moneda.toLowerCase()">{{ s.precio_cliente | number:'1.2-2' }} {{ s.moneda }}</span></div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">Costo: <span class="fw-bold">{{ s.costo_proveedor | number:'1.2-2' }} {{ s.moneda }}</span></div>
-                    <div style="font-size: 0.75rem;" [style.color]="(s.precio_cliente - s.costo_proveedor) >= 0 ? 'var(--success)' : 'var(--danger)'">
-                      Ganancia: {{ s.precio_cliente - s.costo_proveedor | number:'1.2-2' }}
+                  <div class="d-flex gap-1">
+                    <button class="btn-elite-outline" style="padding:0.2rem 0.5rem;font-size:0.7rem;" (click)="editarServicio(s)">✏️ Editar</button>
+                    <button class="btn-elite-outline" style="padding:0.2rem 0.5rem;font-size:0.7rem;color:var(--danger);border-color:var(--danger);" (click)="eliminarServicio(s.id)">🗑️</button>
+                  </div>
+                </div>
+
+                <!-- Datos específicos del tipo -->
+                <div class="svc-detail-grid">
+
+                  @if (s.tipo_servicio === 'HOTEL') {
+                    <div class="svc-field">
+                      <span class="svc-label">Hotel</span>
+                      <span class="svc-value">{{ s.hotel_nombre || '-' }}</span>
                     </div>
-                    <div class="d-flex gap-1 mt-1 justify-content-end">
-                      <button class="btn-elite-outline" style="padding:0.2rem 0.5rem;font-size:0.7rem;" (click)="editarServicio(s)">✏️ Editar</button>
-                      <button class="btn-elite-outline" style="padding:0.2rem 0.5rem;font-size:0.7rem;color:var(--danger);border-color:var(--danger);" (click)="eliminarServicio(s.id)">🗑️</button>
+                    <div class="svc-field">
+                      <span class="svc-label">Ciudad</span>
+                      <span class="svc-value">{{ s.hotel_ciudad || '-' }}</span>
                     </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Check-in</span>
+                      <span class="svc-value">{{ s.hotel_check_in ? formatDate(s.hotel_check_in) : '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Check-out</span>
+                      <span class="svc-value">{{ s.hotel_check_out ? formatDate(s.hotel_check_out) : '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Noches</span>
+                      <span class="svc-value">{{ s.hotel_noches || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Régimen</span>
+                      <span class="svc-value">{{ s.hotel_regimen || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Categoría</span>
+                      <span class="svc-value">{{ s.hotel_categoria ? s.hotel_categoria + '⭐' : '-' }}</span>
+                    </div>
+                  }
+
+                  @if (s.tipo_servicio === 'VUELO') {
+                    <div class="svc-field">
+                      <span class="svc-label">Aerolínea</span>
+                      <span class="svc-value">{{ s.vuelo_aerolinea || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Nro Vuelo</span>
+                      <span class="svc-value">{{ s.vuelo_nro || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Origen</span>
+                      <span class="svc-value">{{ s.vuelo_origen || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Destino</span>
+                      <span class="svc-value">{{ s.vuelo_destino || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Fecha Salida</span>
+                      <span class="svc-value">{{ s.vuelo_fecha_salida ? formatDate(s.vuelo_fecha_salida) : '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Fecha Llegada</span>
+                      <span class="svc-value">{{ s.vuelo_fecha_llegada ? formatDate(s.vuelo_fecha_llegada) : '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Clase</span>
+                      <span class="svc-value">{{ s.vuelo_clase || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Código Reserva</span>
+                      <span class="svc-value">{{ s.vuelo_codigo_reserva || '-' }}</span>
+                    </div>
+                  }
+
+                  @if (s.tipo_servicio === 'ASISTENCIA') {
+                    <div class="svc-field">
+                      <span class="svc-label">Compañía</span>
+                      <span class="svc-value">{{ s.asistencia_compania || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Plan</span>
+                      <span class="svc-value">{{ s.asistencia_plan || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Desde</span>
+                      <span class="svc-value">{{ s.asistencia_fecha_desde ? formatDate(s.asistencia_fecha_desde) : '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Hasta</span>
+                      <span class="svc-value">{{ s.asistencia_fecha_hasta ? formatDate(s.asistencia_fecha_hasta) : '-' }}</span>
+                    </div>
+                    <div class="svc-field" style="grid-column: span 2;">
+                      <span class="svc-label">Cobertura</span>
+                      <span class="svc-value">{{ s.asistencia_cobertura || '-' }}</span>
+                    </div>
+                  }
+
+                  @if (s.tipo_servicio === 'VISA') {
+                    <div class="svc-field">
+                      <span class="svc-label">País</span>
+                      <span class="svc-value">{{ s.visa_pais || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Tipo</span>
+                      <span class="svc-value">{{ s.visa_tipo || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Fecha Trámite</span>
+                      <span class="svc-value">{{ s.visa_fecha_tramite ? formatDate(s.visa_fecha_tramite) : '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Nro Trámite</span>
+                      <span class="svc-value">{{ s.visa_nro_tramite || '-' }}</span>
+                    </div>
+                  }
+
+                  @if (s.tipo_servicio === 'CRUCERO') {
+                    <div class="svc-field">
+                      <span class="svc-label">Naviera</span>
+                      <span class="svc-value">{{ s.crucero_naviera || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Barco</span>
+                      <span class="svc-value">{{ s.crucero_barco || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Cabina</span>
+                      <span class="svc-value">{{ s.crucero_cabina || '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Embarque</span>
+                      <span class="svc-value">{{ s.crucero_fecha_embarque ? formatDate(s.crucero_fecha_embarque) : '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">Desembarque</span>
+                      <span class="svc-value">{{ s.crucero_fecha_desembarque ? formatDate(s.crucero_fecha_desembarque) : '-' }}</span>
+                    </div>
+                    <div class="svc-field" style="grid-column: span 2;">
+                      <span class="svc-label">Itinerario</span>
+                      <span class="svc-value">{{ s.crucero_itinerario || '-' }}</span>
+                    </div>
+                  }
+
+                  @if (s.descripcion) {
+                    <div class="svc-field" style="grid-column: 1 / -1;">
+                      <span class="svc-label">Descripción</span>
+                      <span class="svc-value">{{ s.descripcion }}</span>
+                    </div>
+                  }
+
+                </div>
+
+                <!-- Footer financiero -->
+                <div class="svc-finance-bar">
+                  <div class="svc-finance-item">
+                    <span class="svc-label">Proveedor</span>
+                    <span class="svc-value">{{ s.proveedor_nombre || 'Sin proveedor' }}</span>
+                  </div>
+                  <div class="svc-finance-item">
+                    <span class="svc-label">Precio Cliente</span>
+                    <span class="svc-value fw-bold" [ngClass]="'money-' + s.moneda.toLowerCase()">{{ s.precio_cliente | number:'1.2-2' }} {{ s.moneda }}</span>
+                  </div>
+                  <div class="svc-finance-item">
+                    <span class="svc-label">Costo Proveedor</span>
+                    <span class="svc-value fw-bold">{{ s.costo_proveedor | number:'1.2-2' }} {{ s.moneda }}</span>
+                  </div>
+                  <div class="svc-finance-item">
+                    <span class="svc-label">Ganancia</span>
+                    <span class="svc-value fw-bold" [style.color]="(s.precio_cliente - s.costo_proveedor) >= 0 ? 'var(--success)' : 'var(--danger)'">
+                      {{ s.precio_cliente - s.costo_proveedor | number:'1.2-2' }} {{ s.moneda }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -640,6 +798,46 @@ interface ServicioForm {
       margin-top: 0.75rem; margin-bottom: 0.5rem; font-size: 0.8rem;
       font-weight: 700; color: var(--primary); padding: 0.35rem 0;
       border-top: 1px solid var(--border-light);
+    }
+    .svc-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem 1rem;
+      padding: 0.75rem 0;
+      border-top: 1px solid var(--border-light);
+      border-bottom: 1px solid var(--border-light);
+    }
+    @media (max-width: 768px) {
+      .svc-detail-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .svc-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+    .svc-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .svc-value {
+      font-size: 0.82rem;
+      color: var(--text-primary);
+    }
+    .svc-finance-bar {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding-top: 0.6rem;
+      margin-top: 0.25rem;
+    }
+    .svc-finance-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.05rem;
     }
   `]
 })

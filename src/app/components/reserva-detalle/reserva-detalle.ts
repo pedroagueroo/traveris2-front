@@ -454,11 +454,40 @@ interface ServicioForm {
                     </div>
                     <div class="col-md-4">
                       <label class="form-label-elite">Número de Tarjeta *</label>
-                      <input class="form-control-elite w-100" [(ngModel)]="pagoForm.tarjeta_numero" placeholder="4507 9912 3456 7890" maxlength="19" />
+                      <input class="form-control-elite w-100" [(ngModel)]="pagoForm.tarjeta_numero" placeholder="4507 9912 3456 7890" maxlength="19" (input)="detectarBancoFrontend()" />
+                      @if (bancoDetectado) {
+                        <small style="color: var(--primary); font-size: 0.7rem; font-weight: 600;">🏦 {{ bancoDetectado }}</small>
+                      }
                     </div>
                     <div class="col-md-4">
                       <label class="form-label-elite">Expiración</label>
                       <input class="form-control-elite w-100" [(ngModel)]="pagoForm.tarjeta_expiracion" placeholder="MM/YY" maxlength="5" />
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label-elite">Cuotas</label>
+                      <select class="form-select-elite w-100" [(ngModel)]="pagoForm.tarjeta_cuotas" (change)="calcularMontoConInteres()">
+                        <option [ngValue]="1">1 cuota (sin interés)</option>
+                        <option [ngValue]="3">3 cuotas</option>
+                        <option [ngValue]="6">6 cuotas</option>
+                        <option [ngValue]="9">9 cuotas</option>
+                        <option [ngValue]="12">12 cuotas</option>
+                        <option [ngValue]="18">18 cuotas</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label-elite">Interés (%)</label>
+                      <input type="number" step="0.01" min="0" class="form-control-elite w-100" [(ngModel)]="pagoForm.tarjeta_interes" (input)="calcularMontoConInteres()" placeholder="0" />
+                    </div>
+                    <div class="col-md-4">
+                      @if (pagoForm.tarjeta_cuotas > 1 && pagoForm.tarjeta_interes > 0) {
+                        <label class="form-label-elite">Monto Total c/Interés</label>
+                        <div style="padding: 0.5rem; background: rgba(var(--primary-rgb),0.1); border-radius: 8px; font-weight: 700; font-size: 0.9rem;">
+                          {{ montoConInteres | number:'1.2-2' }} {{ pagoForm.moneda }}
+                          <small style="display:block; font-weight:400; font-size:0.7rem; color: var(--text-muted);">
+                            {{ pagoForm.tarjeta_cuotas }} cuotas de {{ montoConInteres / pagoForm.tarjeta_cuotas | number:'1.2-2' }}
+                          </small>
+                        </div>
+                      }
                     </div>
                   </div>
                 }
@@ -500,7 +529,12 @@ interface ServicioForm {
                       <td><span class="status-pill" [ngClass]="p.tipo === 'COBRO_CLIENTE' ? 'activa' : 'consumida'">{{ p.tipo }}</span></td>
                       <td>{{ p.moneda }}</td>
                       <td class="fw-bold" [ngClass]="'money-' + p.moneda.toLowerCase()">{{ p.monto | number:'1.2-2' }}</td>
-                      <td>{{ p.metodo_nombre || '-' }}</td>
+                      <td>
+                        {{ p.metodo_nombre || '-' }}
+                        @if (p.tarjeta_mask) {
+                          <br><small style="color: var(--text-muted); font-size: 0.7rem;">{{ p.banco_detectado }} {{ p.tarjeta_mask }}</small>
+                        }
+                      </td>
                       <td>
                         @if (p.anulado) { <span class="status-pill cancelado">ANULADO</span> }
                         @else { <span class="status-pill activa">ACTIVO</span> }
@@ -600,6 +634,8 @@ export class ReservaDetalleComponent implements OnInit {
   totalesProveedores: DeudaTotales[] = [];
   tarjetasDisponibles: TarjetaCliente[] = [];
   metodoSeleccionadoEsTarjeta = false;
+  bancoDetectado = '';
+  montoConInteres = 0;
 
   tabActiva: Tab = 'info';
   mostrarFormServicio = false;
@@ -629,6 +665,8 @@ export class ReservaDetalleComponent implements OnInit {
     tarjeta_titular: '',
     tarjeta_numero: '',
     tarjeta_expiracion: '',
+    tarjeta_cuotas: 1,
+    tarjeta_interes: 0,
     // Tarjeta puente (PAGO_PROVEEDOR)
     id_tarjeta_cliente: null as number | null
   };
@@ -775,6 +813,10 @@ export class ReservaDetalleComponent implements OnInit {
     this.pagoForm.tarjeta_titular = '';
     this.pagoForm.tarjeta_numero = '';
     this.pagoForm.tarjeta_expiracion = '';
+    this.pagoForm.tarjeta_cuotas = 1;
+    this.pagoForm.tarjeta_interes = 0;
+    this.bancoDetectado = '';
+    this.montoConInteres = 0;
     this.onMetodoPagoCambia();
   }
 
@@ -794,9 +836,50 @@ export class ReservaDetalleComponent implements OnInit {
       tipo: 'COBRO_CLIENTE', moneda: 'ARS', monto: 0, metodo_pago_id: null,
       id_deuda: null, observaciones: '',
       tarjeta_titular: '', tarjeta_numero: '', tarjeta_expiracion: '',
+      tarjeta_cuotas: 1, tarjeta_interes: 0,
       id_tarjeta_cliente: null
     };
     this.metodoSeleccionadoEsTarjeta = false;
+    this.bancoDetectado = '';
+    this.montoConInteres = 0;
+  }
+
+  detectarBancoFrontend(): void {
+    const num = (this.pagoForm.tarjeta_numero || '').replace(/\s/g, '');
+    if (num.length < 6) { this.bancoDetectado = ''; return; }
+    const p = num.substring(0, 6);
+    if (num.startsWith('4')) {
+      if (p.startsWith('451761') || p.startsWith('450799')) this.bancoDetectado = 'Banco Nación (Visa)';
+      else if (p.startsWith('450601') || p.startsWith('455002')) this.bancoDetectado = 'Banco Provincia (Visa)';
+      else if (p.startsWith('427562') || p.startsWith('450903') || p.startsWith('455500') || p.startsWith('417309')) this.bancoDetectado = 'Banco Galicia (Visa)';
+      else if (p.startsWith('472825') || p.startsWith('476507') || p.startsWith('454775') || p.startsWith('470564')) this.bancoDetectado = 'BBVA (Visa)';
+      else if (p.startsWith('426211') || p.startsWith('403478') || p.startsWith('450601')) this.bancoDetectado = 'Santander (Visa)';
+      else if (p.startsWith('433155') || p.startsWith('451200')) this.bancoDetectado = 'HSBC (Visa)';
+      else if (p.startsWith('458767') || p.startsWith('415829') || p.startsWith('446344')) this.bancoDetectado = 'Macro (Visa)';
+      else this.bancoDetectado = 'Visa';
+    } else if (num.startsWith('5') || (parseInt(p) >= 222100 && parseInt(p) <= 272099)) {
+      if (p.startsWith('515073') || p.startsWith('525547')) this.bancoDetectado = 'Banco Nación (Mastercard)';
+      else if (p.startsWith('517562') || p.startsWith('531463')) this.bancoDetectado = 'Banco Galicia (Mastercard)';
+      else if (p.startsWith('546553') || p.startsWith('525499')) this.bancoDetectado = 'BBVA (Mastercard)';
+      else if (p.startsWith('544407') || p.startsWith('548510')) this.bancoDetectado = 'Santander (Mastercard)';
+      else if (p.startsWith('531993') || p.startsWith('536390')) this.bancoDetectado = 'Macro (Mastercard)';
+      else if (p.startsWith('520188')) this.bancoDetectado = 'Credicoop (Mastercard)';
+      else this.bancoDetectado = 'Mastercard';
+    } else if (num.startsWith('34') || num.startsWith('37')) {
+      this.bancoDetectado = 'American Express';
+    } else if (p.startsWith('604244') || p.startsWith('589657') || p.startsWith('6042') || p.startsWith('6043')) {
+      this.bancoDetectado = 'Cabal';
+    } else if (p.startsWith('589562') || p.startsWith('546553')) {
+      this.bancoDetectado = 'Tarjeta Naranja';
+    } else {
+      this.bancoDetectado = '';
+    }
+  }
+
+  calcularMontoConInteres(): void {
+    const cuotas = this.pagoForm.tarjeta_cuotas || 1;
+    const interes = this.pagoForm.tarjeta_interes || 0;
+    this.montoConInteres = this.pagoForm.monto * (1 + interes / 100);
   }
 
   registrarPago(): void {
@@ -824,6 +907,17 @@ export class ReservaDetalleComponent implements OnInit {
         numero: this.pagoForm.tarjeta_numero.replace(/\s/g, ''),
         expiracion: this.pagoForm.tarjeta_expiracion
       };
+      // Si hay cuotas e interés, actualizar monto y agregar info a observaciones
+      const cuotas = this.pagoForm.tarjeta_cuotas || 1;
+      const interes = this.pagoForm.tarjeta_interes || 0;
+      if (interes > 0) {
+        payload.monto = this.pagoForm.monto * (1 + interes / 100);
+      }
+      if (cuotas > 1) {
+        const montoFinal = payload.monto || this.pagoForm.monto;
+        payload.observaciones = (payload.observaciones || '') +
+          ` [${cuotas} cuotas de ${(montoFinal / cuotas).toFixed(2)}${interes > 0 ? ` - ${interes}% interés` : ''}${this.bancoDetectado ? ` - ${this.bancoDetectado}` : ''}]`;
+      }
     }
 
     // PAGO_PROVEEDOR con tarjeta-puente

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
+import { ConfirmService } from '../../services/confirm.service';
 import { BalanceCaja, DetalleCaja, Pago, Moneda, MetodoPago, ReporteDiario, Cotizacion } from '../../models';
 
 type CajaTab = 'balance' | 'diario' | 'conversion';
@@ -128,7 +129,7 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
 
           <div class="glass-card-solid" style="padding: 0; overflow-x: auto;">
             <table class="table-premium">
-              <thead><tr><th>Hora</th><th>Tipo</th><th>Moneda</th><th>Monto</th><th>Método</th><th>Detalle</th></tr></thead>
+              <thead><tr><th>Hora</th><th>Tipo</th><th>Moneda</th><th>Monto</th><th>Método</th><th>Detalle</th><th></th></tr></thead>
               <tbody>
                 @for (m of reporteDiario?.movimientos || []; track m.id) {
                   <tr [class.anulado]="m.anulado">
@@ -138,9 +139,14 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
                     <td class="fw-bold" [ngClass]="'money-' + m.moneda.toLowerCase()">{{ m.monto | number:'1.2-2' }}</td>
                     <td>{{ m.metodo_nombre || '-' }}</td>
                     <td style="font-size: 0.8rem; color: var(--text-secondary);">{{ m.observaciones || m.cliente_nombre || m.proveedor_nombre || '-' }}</td>
+                    <td>
+                      @if (!m.anulado) {
+                        <button class="btn-danger-elite" style="padding: 0.2rem 0.5rem; font-size: 0.65rem;" (click)="eliminarMovimiento(m.id)">🗑️</button>
+                      }
+                    </td>
                   </tr>
                 } @empty {
-                  <tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">Sin movimientos este día</td></tr>
+                  <tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">Sin movimientos este día</td></tr>
                 }
               </tbody>
             </table>
@@ -213,7 +219,7 @@ export class CajaComponent implements OnInit {
   movForm = { tipo: 'INGRESO_GENERAL', moneda: 'ARS' as Moneda, monto: 0, metodo_pago_id: null as number | null, observaciones: '' };
   convForm = { moneda_origen: 'USD' as Moneda, moneda_destino: 'ARS' as Moneda, monto_origen: 0, monto_destino: 0, observaciones: '' };
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private confirmSvc: ConfirmService) {}
 
   ngOnInit(): void {
     this.cargarBalances();
@@ -254,6 +260,24 @@ export class CajaComponent implements OnInit {
 
   cargarDiario(): void {
     this.api.getReporteDiario(this.fechaDiario).subscribe({ next: (r) => this.reporteDiario = r });
+  }
+
+  async eliminarMovimiento(id: number): Promise<void> {
+    const ok = await this.confirmSvc.confirm({
+      title: 'Eliminar Movimiento',
+      message: '¿Eliminar este movimiento de caja? Se revertirá el efecto en el balance.',
+      confirmText: 'Sí, eliminar',
+      type: 'warning'
+    });
+    if (!ok) return;
+    this.api.eliminarMovimientoCaja(id).subscribe({
+      next: () => {
+        this.confirmSvc.toast('Movimiento eliminado');
+        this.cargarDiario();
+        this.cargarBalances();
+      },
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al eliminar', 'error')
+    });
   }
 
   realizarConversion(): void {

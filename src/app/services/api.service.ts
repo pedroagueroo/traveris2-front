@@ -298,6 +298,10 @@ export class ApiService {
     return this.http.get<CierreMensual>(`${this.api}/caja/cierre-mensual`, { params });
   }
 
+  eliminarMovimientoCaja(id: number): Observable<any> {
+    return this.http.delete(`${this.api}/pagos/${id}`);
+  }
+
   // ─── IMPORT ────────────────────────────────────────────────────────────────
   importPreview(file: File): Observable<{ formato?: string; columnas_detectadas?: string[]; clientes: Partial<Cliente>[]; validos: number; invalidos: number; total: number }> {
     const fd = new FormData();

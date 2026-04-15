@@ -299,16 +299,16 @@ export class ApiService {
   }
 
   // ─── IMPORT ────────────────────────────────────────────────────────────────
-  importPreview(file: File): Observable<{ clientes: Partial<Cliente>[]; validos: number; invalidos: number; total: number }> {
+  importPreview(file: File): Observable<{ formato?: string; columnas_detectadas?: string[]; clientes: Partial<Cliente>[]; validos: number; invalidos: number; total: number }> {
     const fd = new FormData();
     fd.append('archivo', file);
-    return this.http.post<{ clientes: Partial<Cliente>[]; validos: number; invalidos: number; total: number }>(
+    return this.http.post<{ formato?: string; columnas_detectadas?: string[]; clientes: Partial<Cliente>[]; validos: number; invalidos: number; total: number }>(
       `${this.api}/import-clientes/preview`, fd
     );
   }
 
-  importConfirmar(clientes: Partial<Cliente>[]): Observable<{ importados: number; errores: number }> {
-    return this.http.post<{ importados: number; errores: number }>(
+  importConfirmar(clientes: Partial<Cliente>[]): Observable<{ importados: number; actualizados?: number; errores: number }> {
+    return this.http.post<{ importados: number; actualizados?: number; errores: number }>(
       `${this.api}/import-clientes/confirmar`, { clientes }
     );
   }

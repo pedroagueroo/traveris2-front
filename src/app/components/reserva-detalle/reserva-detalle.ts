@@ -422,7 +422,7 @@ interface ServicioForm {
                   </div>
                   <div class="col-md-3">
                     <label class="form-label-elite">Método Pago</label>
-                    <select class="form-select-elite w-100" [(ngModel)]="pagoForm.metodo_pago_id">
+                    <select class="form-select-elite w-100" [(ngModel)]="pagoForm.metodo_pago_id" (change)="onMetodoPagoCambia()">
                       <option [ngValue]="null">Seleccionar...</option>
                       @for (m of metodosPago; track m.id) {
                         <option [ngValue]="m.id">{{ m.nombre }}</option>
@@ -443,6 +443,45 @@ interface ServicioForm {
                     <input class="form-control-elite w-100" [(ngModel)]="pagoForm.observaciones" />
                   </div>
                 </div>
+
+                <!-- TARJETA NUEVA: COBRO_CLIENTE con método TARJETA -->
+                @if (pagoForm.tipo === 'COBRO_CLIENTE' && metodoSeleccionadoEsTarjeta) {
+                  <div class="tipo-fields-label">💳 Datos de Tarjeta del Cliente</div>
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <label class="form-label-elite">Titular *</label>
+                      <input class="form-control-elite w-100" [(ngModel)]="pagoForm.tarjeta_titular" placeholder="Nombre del titular" />
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label-elite">Número de Tarjeta *</label>
+                      <input class="form-control-elite w-100" [(ngModel)]="pagoForm.tarjeta_numero" placeholder="4507 9912 3456 7890" maxlength="19" />
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label-elite">Expiración</label>
+                      <input class="form-control-elite w-100" [(ngModel)]="pagoForm.tarjeta_expiracion" placeholder="MM/YY" maxlength="5" />
+                    </div>
+                  </div>
+                }
+
+                <!-- TARJETA PUENTE: PAGO_PROVEEDOR con método TARJETA -->
+                @if (pagoForm.tipo === 'PAGO_PROVEEDOR' && metodoSeleccionadoEsTarjeta) {
+                  <div class="tipo-fields-label">💳 Seleccionar Tarjeta del Cliente</div>
+                  <div class="row g-3">
+                    <div class="col-md-12">
+                      <label class="form-label-elite">Tarjeta disponible *</label>
+                      <select class="form-select-elite w-100" [(ngModel)]="pagoForm.id_tarjeta_cliente">
+                        <option [ngValue]="null">Seleccionar tarjeta...</option>
+                        @for (t of tarjetasDisponibles; track t.id) {
+                          <option [ngValue]="t.id">{{ t.banco_detectado }} — {{ t.numero_mask }} — {{ t.titular }} — Disponible: {{ t.monto_disponible | number:'1.2-2' }} {{ t.moneda }}</option>
+                        }
+                      </select>
+                      @if (tarjetasDisponibles.length === 0) {
+                        <small style="color: var(--warning); font-size: 0.75rem;">⚠️ No hay tarjetas disponibles. Primero registre un cobro al cliente con tarjeta.</small>
+                      }
+                    </div>
+                  </div>
+                }
+
                 <div class="d-flex gap-2 mt-3">
                   <button class="btn-success-elite" (click)="registrarPago()"><span>Registrar</span></button>
                   <button class="btn-elite-outline" (click)="mostrarFormPago = false">Cancelar</button>
@@ -560,6 +599,7 @@ export class ReservaDetalleComponent implements OnInit {
   totalesCliente: DeudaTotales[] = [];
   totalesProveedores: DeudaTotales[] = [];
   tarjetasDisponibles: TarjetaCliente[] = [];
+  metodoSeleccionadoEsTarjeta = false;
 
   tabActiva: Tab = 'info';
   mostrarFormServicio = false;
@@ -584,7 +624,13 @@ export class ReservaDetalleComponent implements OnInit {
     monto: 0,
     metodo_pago_id: null as number | null,
     id_deuda: null as number | null,
-    observaciones: ''
+    observaciones: '',
+    // Tarjeta nueva (COBRO_CLIENTE)
+    tarjeta_titular: '',
+    tarjeta_numero: '',
+    tarjeta_expiracion: '',
+    // Tarjeta puente (PAGO_PROVEEDOR)
+    id_tarjeta_cliente: null as number | null
   };
 
   private idReserva = 0;
@@ -725,29 +771,78 @@ export class ReservaDetalleComponent implements OnInit {
   // Pagos
   onTipoPagoCambia(): void {
     this.pagoForm.id_deuda = null;
+    this.pagoForm.id_tarjeta_cliente = null;
+    this.pagoForm.tarjeta_titular = '';
+    this.pagoForm.tarjeta_numero = '';
+    this.pagoForm.tarjeta_expiracion = '';
+    this.onMetodoPagoCambia();
+  }
+
+  onMetodoPagoCambia(): void {
+    const metodo = this.metodosPago.find(m => m.id === this.pagoForm.metodo_pago_id);
+    this.metodoSeleccionadoEsTarjeta = metodo?.tipo === 'TARJETA';
+    // Si es PAGO_PROVEEDOR con tarjeta, cargar tarjetas disponibles
+    if (this.metodoSeleccionadoEsTarjeta && this.pagoForm.tipo === 'PAGO_PROVEEDOR') {
+      this.api.getTarjetasDisponibles().subscribe({
+        next: (t) => this.tarjetasDisponibles = t
+      });
+    }
+  }
+
+  resetPagoForm(): void {
+    this.pagoForm = {
+      tipo: 'COBRO_CLIENTE', moneda: 'ARS', monto: 0, metodo_pago_id: null,
+      id_deuda: null, observaciones: '',
+      tarjeta_titular: '', tarjeta_numero: '', tarjeta_expiracion: '',
+      id_tarjeta_cliente: null
+    };
+    this.metodoSeleccionadoEsTarjeta = false;
   }
 
   registrarPago(): void {
     if (!this.pagoForm.monto) return;
-    const selectedDeuda = this.pagoForm.tipo === 'COBRO_CLIENTE'
-      ? this.deudasCliente.find(d => d.id === this.pagoForm.id_deuda)
-      : this.deudasProveedores.find(d => (d as unknown as { id: number }).id === this.pagoForm.id_deuda);
 
-    this.api.registrarPago({
+    const payload: any = {
       id_reserva: this.idReserva,
       id_deuda: this.pagoForm.id_deuda,
       id_cliente: this.reserva?.id_titular || null,
-      tipo: this.pagoForm.tipo as 'COBRO_CLIENTE' | 'PAGO_PROVEEDOR',
+      tipo: this.pagoForm.tipo,
       moneda: this.pagoForm.moneda,
       monto: this.pagoForm.monto,
       metodo_pago_id: this.pagoForm.metodo_pago_id,
       observaciones: this.pagoForm.observaciones
-    }).subscribe({
-      next: () => {
-        this.mostrarFormPago = false;
-        this.pagoForm = { tipo: 'COBRO_CLIENTE', moneda: 'ARS', monto: 0, metodo_pago_id: null, id_deuda: null, observaciones: '' };
-        this.cargarTodo();
+    };
+
+    // COBRO_CLIENTE con tarjeta nueva
+    if (this.pagoForm.tipo === 'COBRO_CLIENTE' && this.metodoSeleccionadoEsTarjeta) {
+      if (!this.pagoForm.tarjeta_numero || !this.pagoForm.tarjeta_titular) {
+        this.confirmSvc.toast('Completá los datos de la tarjeta', 'error');
+        return;
       }
+      payload.tarjeta = {
+        titular: this.pagoForm.tarjeta_titular,
+        numero: this.pagoForm.tarjeta_numero.replace(/\s/g, ''),
+        expiracion: this.pagoForm.tarjeta_expiracion
+      };
+    }
+
+    // PAGO_PROVEEDOR con tarjeta-puente
+    if (this.pagoForm.tipo === 'PAGO_PROVEEDOR' && this.metodoSeleccionadoEsTarjeta) {
+      if (!this.pagoForm.id_tarjeta_cliente) {
+        this.confirmSvc.toast('Seleccioná una tarjeta del listado', 'error');
+        return;
+      }
+      payload.id_tarjeta_cliente = this.pagoForm.id_tarjeta_cliente;
+    }
+
+    this.api.registrarPago(payload).subscribe({
+      next: () => {
+        this.confirmSvc.toast('Pago registrado correctamente');
+        this.mostrarFormPago = false;
+        this.resetPagoForm();
+        this.cargarTodo();
+      },
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al registrar pago', 'error')
     });
   }
 

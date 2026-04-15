@@ -390,11 +390,11 @@ interface ServicioForm {
                     </div>
                     <div class="svc-field">
                       <span class="svc-label">Fecha Salida</span>
-                      <span class="svc-value">{{ s.vuelo_fecha_salida ? formatDate(s.vuelo_fecha_salida) : '-' }}</span>
+                      <span class="svc-value">{{ s.vuelo_fecha_salida ? formatDateTime(s.vuelo_fecha_salida) : '-' }}</span>
                     </div>
                     <div class="svc-field">
                       <span class="svc-label">Fecha Llegada</span>
-                      <span class="svc-value">{{ s.vuelo_fecha_llegada ? formatDate(s.vuelo_fecha_llegada) : '-' }}</span>
+                      <span class="svc-value">{{ s.vuelo_fecha_llegada ? formatDateTime(s.vuelo_fecha_llegada) : '-' }}</span>
                     </div>
                     <div class="svc-field">
                       <span class="svc-label">Clase</span>
@@ -976,7 +976,7 @@ export class ReservaDetalleComponent implements OnInit {
       tipo_servicio: s.tipo_servicio, descripcion: s.descripcion || '', id_proveedor: s.id_proveedor,
       moneda: s.moneda, precio_cliente: s.precio_cliente, costo_proveedor: s.costo_proveedor,
       hotel_nombre: s.hotel_nombre || '', hotel_ciudad: s.hotel_ciudad || '', hotel_check_in: s.hotel_check_in ? s.hotel_check_in.substring(0,10) : '', hotel_check_out: s.hotel_check_out ? s.hotel_check_out.substring(0,10) : '', hotel_regimen: s.hotel_regimen || '', hotel_noches: s.hotel_noches ?? null, hotel_categoria: s.hotel_categoria || '',
-      vuelo_aerolinea: s.vuelo_aerolinea || '', vuelo_nro: s.vuelo_nro || '', vuelo_origen: s.vuelo_origen || '', vuelo_destino: s.vuelo_destino || '', vuelo_fecha_salida: s.vuelo_fecha_salida || '', vuelo_fecha_llegada: s.vuelo_fecha_llegada || '', vuelo_clase: s.vuelo_clase || '', vuelo_codigo_reserva: s.vuelo_codigo_reserva || '',
+      vuelo_aerolinea: s.vuelo_aerolinea || '', vuelo_nro: s.vuelo_nro || '', vuelo_origen: s.vuelo_origen || '', vuelo_destino: s.vuelo_destino || '', vuelo_fecha_salida: s.vuelo_fecha_salida ? this.toDatetimeLocal(s.vuelo_fecha_salida) : '', vuelo_fecha_llegada: s.vuelo_fecha_llegada ? this.toDatetimeLocal(s.vuelo_fecha_llegada) : '', vuelo_clase: s.vuelo_clase || '', vuelo_codigo_reserva: s.vuelo_codigo_reserva || '',
       asistencia_compania: s.asistencia_compania || '', asistencia_plan: s.asistencia_plan || '', asistencia_fecha_desde: s.asistencia_fecha_desde ? s.asistencia_fecha_desde.substring(0,10) : '', asistencia_fecha_hasta: s.asistencia_fecha_hasta ? s.asistencia_fecha_hasta.substring(0,10) : '', asistencia_cobertura: s.asistencia_cobertura || '',
       visa_pais: s.visa_pais || '', visa_tipo: s.visa_tipo || '', visa_fecha_tramite: s.visa_fecha_tramite ? s.visa_fecha_tramite.substring(0,10) : '', visa_nro_tramite: s.visa_nro_tramite || '',
       crucero_naviera: s.crucero_naviera || '', crucero_barco: s.crucero_barco || '', crucero_itinerario: s.crucero_itinerario || '', crucero_cabina: s.crucero_cabina || '', crucero_fecha_embarque: s.crucero_fecha_embarque ? s.crucero_fecha_embarque.substring(0,10) : '', crucero_fecha_desembarque: s.crucero_fecha_desembarque ? s.crucero_fecha_desembarque.substring(0,10) : ''
@@ -1016,6 +1016,11 @@ export class ReservaDetalleComponent implements OnInit {
 
   getDetalleServicio(s: ServicioDetallado): string {
     const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+    const fmtDt = (d: string | null) => {
+      if (!d) return '';
+      const dt = new Date(d);
+      return `${dt.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${dt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
+    };
     const parts: string[] = [];
     switch (s.tipo_servicio) {
       case 'HOTEL':
@@ -1027,8 +1032,8 @@ export class ReservaDetalleComponent implements OnInit {
         break;
       case 'VUELO':
         if (s.vuelo_origen && s.vuelo_destino) parts.push(`${s.vuelo_origen} → ${s.vuelo_destino}`);
-        if (s.vuelo_fecha_salida) parts.push(`Salida: ${fmt(s.vuelo_fecha_salida)}`);
-        if (s.vuelo_fecha_llegada) parts.push(`Llegada: ${fmt(s.vuelo_fecha_llegada)}`);
+        if (s.vuelo_fecha_salida) parts.push(`Salida: ${fmtDt(s.vuelo_fecha_salida)}`);
+        if (s.vuelo_fecha_llegada) parts.push(`Llegada: ${fmtDt(s.vuelo_fecha_llegada)}`);
         if (s.vuelo_clase) parts.push(s.vuelo_clase);
         if (s.vuelo_codigo_reserva) parts.push(`Código: ${s.vuelo_codigo_reserva}`);
         break;
@@ -1252,6 +1257,20 @@ export class ReservaDetalleComponent implements OnInit {
   // Helpers
   formatDate(fecha: string): string {
     return new Date(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  formatDateTime(fecha: string): string {
+    const d = new Date(fecha);
+    const date = d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
+    const time = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    return `${date} ${time}`;
+  }
+
+  /** Converts ISO timestamp to datetime-local input format (YYYY-MM-DDTHH:MM) */
+  private toDatetimeLocal(iso: string): string {
+    const d = new Date(iso);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   isUrgente(): boolean {

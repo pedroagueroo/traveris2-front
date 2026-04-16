@@ -34,7 +34,7 @@ import { Cliente } from '../../models';
                 <div class="col-md-6"><strong style="color: var(--text-muted); font-size: 0.75rem;">DNI/PASAPORTE</strong><div>{{ cliente.dni_pasaporte || '-' }}</div></div>
                 <div class="col-md-6"><strong style="color: var(--text-muted); font-size: 0.75rem;">EMAIL</strong><div>{{ cliente.email || '-' }}</div></div>
                 <div class="col-md-6"><strong style="color: var(--text-muted); font-size: 0.75rem;">TELÉFONO</strong><div>{{ cliente.telefono || '-' }}</div></div>
-                <div class="col-md-6"><strong style="color: var(--text-muted); font-size: 0.75rem;">NACIMIENTO</strong><div>{{ cliente.fecha_nacimiento ? (cliente.fecha_nacimiento | date:'dd/MM/yyyy') : '-' }}</div></div>
+                <div class="col-md-6"><strong style="color: var(--text-muted); font-size: 0.75rem;">NACIMIENTO</strong><div>{{ cliente.fecha_nacimiento ? (cliente.fecha_nacimiento | date:'dd/MM/yyyy':'UTC') : '-' }}</div></div>
                 <div class="col-md-6"><strong style="color: var(--text-muted); font-size: 0.75rem;">NACIONALIDAD</strong><div>{{ cliente.nacionalidad || '-' }}</div></div>
                 <div class="col-md-6"><strong style="color: var(--text-muted); font-size: 0.75rem;">SEXO</strong><div>{{ cliente.sexo || '-' }}</div></div>
                 <div class="col-md-6"><strong style="color: var(--text-muted); font-size: 0.75rem;">CUIT/CUIL</strong><div>{{ cliente.cuit_cuil || '-' }}</div></div>
@@ -47,8 +47,8 @@ import { Cliente } from '../../models';
                 <div class="row g-2">
                   @if (cliente.pasaporte_nro) {
                     <div class="col-md-4"><strong style="color: var(--text-muted); font-size: 0.75rem;">NRO PASAPORTE</strong><div>{{ cliente.pasaporte_nro }}</div></div>
-                    <div class="col-md-4"><strong style="color: var(--text-muted); font-size: 0.75rem;">EMISIÓN</strong><div>{{ cliente.pasaporte_emision ? (cliente.pasaporte_emision | date:'dd/MM/yyyy') : '-' }}</div></div>
-                    <div class="col-md-4"><strong style="color: var(--text-muted); font-size: 0.75rem;">VENCIMIENTO</strong><div>{{ cliente.pasaporte_vencimiento ? (cliente.pasaporte_vencimiento | date:'dd/MM/yyyy') : '-' }}</div></div>
+                    <div class="col-md-4"><strong style="color: var(--text-muted); font-size: 0.75rem;">EMISIÓN</strong><div>{{ cliente.pasaporte_emision ? (cliente.pasaporte_emision | date:'dd/MM/yyyy':'UTC') : '-' }}</div></div>
+                    <div class="col-md-4"><strong style="color: var(--text-muted); font-size: 0.75rem;">VENCIMIENTO</strong><div>{{ cliente.pasaporte_vencimiento ? (cliente.pasaporte_vencimiento | date:'dd/MM/yyyy':'UTC') : '-' }}</div></div>
                   }
                   @if (cliente.pref_asiento) {
                     <div class="col-md-6"><strong style="color: var(--text-muted); font-size: 0.75rem;">PREF. ASIENTO</strong><div>{{ cliente.pref_asiento }}</div></div>

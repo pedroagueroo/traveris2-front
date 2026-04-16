@@ -46,7 +46,7 @@ import { Reserva, PaginatedResponse } from '../../models';
                 <td>{{ r.id }}</td>
                 <td style="font-weight: 600;">{{ r.titular_nombre }}</td>
                 <td>{{ r.destino_final || '-' }}</td>
-                <td>{{ r.fecha_viaje_salida ? (r.fecha_viaje_salida | date:'dd/MM/yyyy') : '-' }}</td>
+                <td>{{ r.fecha_viaje_salida ? (r.fecha_viaje_salida | date:'dd/MM/yyyy':'UTC') : '-' }}</td>
                 <td><span class="status-pill" [ngClass]="r.estado.toLowerCase()">{{ r.estado }}</span></td>
                 <td>
                   <div class="d-flex gap-1">

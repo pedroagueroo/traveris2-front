@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink, Router } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { ConfirmService } from '../../services/confirm.service';
-import { Cliente } from '../../models';
+import { Cliente, Reserva } from '../../models';
 
 @Component({
   selector: 'app-cliente-detalle',
@@ -75,6 +75,25 @@ import { Cliente } from '../../models';
                 </div>
               }
             </div>
+            <div class="glass-card-solid mt-3">
+              <h5 style="font-weight: 700; margin-bottom: 1rem;">✈️ Reservas Asociadas</h5>
+              @if (!reservas.length) {
+                <p style="color: var(--text-muted);">Sin reservas asociadas</p>
+              }
+              @for (r of reservas; track r.id) {
+                <div style="padding: 0.75rem; border-bottom: 1px solid var(--border-light); font-size: 0.85rem;">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <a [routerLink]="['/reservas/detalle', r.id]" class="fw-bold" style="color: var(--primary); text-decoration: none;" title="Ver Reserva">
+                      Reserva #{{ r.id }}
+                    </a>
+                    <span class="status-pill status-{{ r.estado.toLowerCase() }}" style="font-size: 0.65rem;">{{ r.estado }}</span>
+                  </div>
+                  <div style="color: var(--text-muted);">
+                    Titular: {{ r.titular_nombre }}
+                  </div>
+                </div>
+              }
+            </div>
           </div>
         </div>
       }
@@ -83,6 +102,7 @@ import { Cliente } from '../../models';
 })
 export class ClienteDetalleComponent implements OnInit {
   cliente: Cliente | null = null;
+  reservas: Reserva[] = [];
 
   constructor(
     private api: ApiService,
@@ -94,6 +114,7 @@ export class ClienteDetalleComponent implements OnInit {
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     this.api.getCliente(id).subscribe({ next: (c) => this.cliente = c });
+    this.api.getReservasCliente(id).subscribe({ next: (rs) => this.reservas = rs });
   }
 
   async eliminar(): Promise<void> {

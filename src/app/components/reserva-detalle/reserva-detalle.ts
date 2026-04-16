@@ -77,7 +77,7 @@ interface ServicioForm {
               <span class="status-pill ms-2" [ngClass]="reserva.estado.toLowerCase()">{{ reserva.estado }}</span>
             </h1>
             <p class="page-subtitle">
-              {{ reserva.titular_nombre }} → {{ reserva.destino_final || 'Sin destino' }}
+              <a [routerLink]="['/clientes/detalle', reserva.id_titular]" style="color: inherit; text-decoration: none;" class="fw-semibold text-primary-hover" title="Ver ficha del titular">{{ reserva.titular_nombre }}</a> → {{ reserva.destino_final || 'Sin destino' }}
             </p>
           </div>
           <div class="d-flex gap-2">
@@ -103,7 +103,7 @@ interface ServicioForm {
               <div class="glass-card-solid">
                 <h5 class="section-title">📋 Información General</h5>
                 <div class="row g-2">
-                  <div class="col-md-6"><div class="info-label">TITULAR</div><div class="info-value">{{ reserva.titular_nombre }}</div></div>
+                  <div class="col-md-6"><div class="info-label">TITULAR</div><div class="info-value"><a [routerLink]="['/clientes/detalle', reserva.id_titular]" style="color: var(--primary); text-decoration: none; font-weight: 600;" title="Ver ficha del cliente">{{ reserva.titular_nombre }}</a></div></div>
                   <div class="col-md-6"><div class="info-label">DNI</div><div class="info-value">{{ reserva.titular_dni || '-' }}</div></div>
                   <div class="col-md-6"><div class="info-label">DESTINO</div><div class="info-value">{{ reserva.destino_final || '-' }}</div></div>
                   <div class="col-md-3"><div class="info-label">SALIDA</div><div class="info-value">{{ reserva.fecha_viaje_salida ? formatDate(reserva.fecha_viaje_salida) : '-' }}</div></div>
@@ -120,8 +120,10 @@ interface ServicioForm {
                 <h5 class="section-title">👥 Pasajeros ({{ reserva.pasajeros?.length || 0 }})</h5>
                 @for (p of reserva.pasajeros; track p.id) {
                   <div class="pasajero-item">
-                    <span class="fw-semibold">{{ p.nombre_completo }}</span>
-                    @if (p.es_titular) { <span class="status-pill activa" style="font-size: 0.6rem;">TITULAR</span> }
+                    <a [routerLink]="['/clientes/detalle', p.id_cliente]" style="color: var(--text-primary); text-decoration: none;" title="Ver ficha del cliente">
+                      <span class="fw-semibold">{{ p.nombre_completo }}</span>
+                    </a>
+                    @if (p.es_titular) { <span class="status-pill activa ms-1" style="font-size: 0.6rem;">TITULAR</span> }
                     <div style="font-size: 0.75rem; color: var(--text-muted);">{{ p.dni_pasaporte || 'Sin DNI' }}</div>
                   </div>
                 }

@@ -790,7 +790,7 @@ interface ServicioForm {
           <div class="animate-fadeInUp">
             <div class="d-flex justify-content-between mb-3">
               <h5 class="section-title">💳 Tarjetas con Saldo Disponible ({{ reserva.tarjetas?.length || 0 }})</h5>
-              <small class="text-muted" style="font-size: 0.75rem;">Tarjetas originadas en esta reserva útiles para pagar.</small>
+              <small class="text-muted" style="font-size: 0.75rem;">Todas las tarjetas registradas en su agencia listas para usarse.</small>
             </div>
 
             @for (t of reserva.tarjetas; track t.id) {
@@ -826,7 +826,7 @@ interface ServicioForm {
               </div>
             } @empty {
               <div class="glass-card-solid" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
-                No hay tarjetas puente con saldo a favor asociadas a los pagos de esta reserva.
+                Tu agencia actualmente no cuenta con tarjetas puente con saldo a favor.
               </div>
             }
           </div>

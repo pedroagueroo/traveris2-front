@@ -83,7 +83,7 @@ import { Cliente, Reserva } from '../../models';
               @for (r of reservas; track r.id) {
                 <div style="padding: 0.75rem; border-bottom: 1px solid var(--border-light); font-size: 0.85rem;">
                   <div class="d-flex justify-content-between align-items-center mb-1">
-                    <a [routerLink]="['/reservas/detalle', r.id]" class="fw-bold" style="color: var(--primary); text-decoration: none;" title="Ver Reserva">
+                    <a [routerLink]="['/reservas', r.id]" class="fw-bold" style="color: var(--primary); text-decoration: none;" title="Ver Reserva">
                       Reserva #{{ r.id }}
                     </a>
                     <span class="status-pill status-{{ r.estado.toLowerCase() }}" style="font-size: 0.65rem;">{{ r.estado }}</span>

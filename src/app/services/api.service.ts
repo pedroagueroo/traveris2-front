@@ -248,6 +248,10 @@ export class ApiService {
     return this.http.get<TarjetaCliente[]>(`${this.api}/tarjetas/disponibles`);
   }
 
+  getTarjetasDisponiblesPorProveedor(idProveedor: number): Observable<TarjetaCliente[]> {
+    return this.http.get<TarjetaCliente[]>(`${this.api}/tarjetas/disponibles/proveedor/${idProveedor}`);
+  }
+
   getTarjetas(estado?: string): Observable<TarjetaCliente[]> {
     let params = new HttpParams();
     if (estado) params = params.set('estado', estado);

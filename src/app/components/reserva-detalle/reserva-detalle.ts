@@ -611,7 +611,7 @@ interface ServicioForm {
                   </div>
                   <div class="col-md-6">
                     <label class="form-label-elite">Deuda a aplicar</label>
-                    <select class="form-select-elite w-100" [(ngModel)]="pagoForm.id_deuda">
+                    <select class="form-select-elite w-100" [(ngModel)]="pagoForm.id_deuda" (change)="onDeudaCambia()">
                       <option [ngValue]="null">Sin vincular</option>
                       @for (d of deudasParaPago(); track $index) {
                         <option [ngValue]="getDeudaId(d)">{{ getNombreDeuda(d) }} — Saldo: {{ d.saldo | number:'1.2-2' }} {{ d.moneda }}</option>
@@ -681,11 +681,18 @@ interface ServicioForm {
                       <select class="form-select-elite w-100" [(ngModel)]="pagoForm.id_tarjeta_cliente">
                         <option [ngValue]="null">Seleccionar tarjeta...</option>
                         @for (t of tarjetasDisponibles; track t.id) {
-                          <option [ngValue]="t.id">{{ t.banco_detectado }} — {{ t.numero_mask }} — {{ t.titular }} — Disponible: {{ t.monto_disponible | number:'1.2-2' }} {{ t.moneda }}</option>
+                          <option [ngValue]="t.id">
+                            {{ t.banco_detectado }} — {{ t.numero_mask }} — {{ t.titular }} — Disp: {{ t.monto_disponible | number:'1.2-2' }} {{ t.moneda }}
+                            {{ t.id_proveedor_vinculado ? ' 🔗 ' + t.proveedor_vinculado_nombre : ' 🆕 Sin vincular' }}
+                          </option>
                         }
                       </select>
-                      @if (tarjetasDisponibles.length === 0) {
+                      @if (tarjetasDisponibles.length === 0 && proveedorDeDeudaSeleccionada) {
+                        <small style="color: var(--warning); font-size: 0.75rem;">⚠️ No hay tarjetas vinculadas a este proveedor ni tarjetas libres. Primero registre un cobro al cliente con tarjeta.</small>
+                      } @else if (tarjetasDisponibles.length === 0) {
                         <small style="color: var(--warning); font-size: 0.75rem;">⚠️ No hay tarjetas disponibles. Primero registre un cobro al cliente con tarjeta.</small>
+                      } @else if (proveedorDeDeudaSeleccionada) {
+                        <small style="color: var(--text-muted); font-size: 0.7rem;">ℹ️ Mostrando solo tarjetas vinculadas a este proveedor o sin vincular. El saldo a favor queda exclusivo para este proveedor.</small>
                       }
                     </div>
                   </div>
@@ -1082,11 +1089,39 @@ export class ReservaDetalleComponent implements OnInit {
     this.onMetodoPagoCambia();
   }
 
+  proveedorDeDeudaSeleccionada: number | null = null;
+
   onMetodoPagoCambia(): void {
     const metodo = this.metodosPago.find(m => m.id === this.pagoForm.metodo_pago_id);
     this.metodoSeleccionadoEsTarjeta = metodo?.tipo === 'TARJETA';
-    // Si es PAGO_PROVEEDOR con tarjeta, cargar tarjetas disponibles
+    // Si es PAGO_PROVEEDOR con tarjeta, cargar tarjetas filtradas por proveedor
     if (this.metodoSeleccionadoEsTarjeta && this.pagoForm.tipo === 'PAGO_PROVEEDOR') {
+      this.cargarTarjetasFiltradas();
+    }
+  }
+
+  onDeudaCambia(): void {
+    // Extraer proveedor de la deuda seleccionada
+    this.proveedorDeDeudaSeleccionada = null;
+    if (this.pagoForm.id_deuda && this.pagoForm.tipo === 'PAGO_PROVEEDOR') {
+      const deuda = this.deudasProveedores.find(d => d.id === this.pagoForm.id_deuda);
+      if (deuda?.id_proveedor) {
+        this.proveedorDeDeudaSeleccionada = deuda.id_proveedor;
+      }
+    }
+    // Recargar tarjetas si el método es tarjeta
+    if (this.metodoSeleccionadoEsTarjeta && this.pagoForm.tipo === 'PAGO_PROVEEDOR') {
+      this.pagoForm.id_tarjeta_cliente = null;
+      this.cargarTarjetasFiltradas();
+    }
+  }
+
+  private cargarTarjetasFiltradas(): void {
+    if (this.proveedorDeDeudaSeleccionada) {
+      this.api.getTarjetasDisponiblesPorProveedor(this.proveedorDeDeudaSeleccionada).subscribe({
+        next: (t) => this.tarjetasDisponibles = t
+      });
+    } else {
       this.api.getTarjetasDisponibles().subscribe({
         next: (t) => this.tarjetasDisponibles = t
       });

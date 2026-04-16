@@ -349,6 +349,8 @@ export interface TarjetaCliente {
   fecha_cobro: string;
   id_pago_origen: number | null;
   empresa_nombre: string;
+  id_proveedor_vinculado: number | null;
+  proveedor_vinculado_nombre: string | null;
 }
 
 // ─── RECIBO ──────────────────────────────────────────────────────────────────

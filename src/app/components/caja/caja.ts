@@ -5,7 +5,7 @@ import { ApiService } from '../../services/api.service';
 import { ConfirmService } from '../../services/confirm.service';
 import { BalanceCaja, DetalleCaja, Pago, Moneda, MetodoPago, ReporteDiario, Cotizacion } from '../../models';
 
-type CajaTab = 'balance' | 'diario' | 'conversion';
+type CajaTab = 'billeteras' | 'movimientos' | 'conversion';
 
 @Component({
   selector: 'app-caja',
@@ -20,25 +20,15 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
         </div>
       </div>
 
-      <!-- Balances rápidos -->
+      <!-- Saldos totales por moneda -->
       <div class="row g-3 mb-4">
         @for (b of balances; track b.moneda) {
           <div class="col-md-4">
-            <div class="money-wallet" [ngClass]="b.moneda.toLowerCase()" (click)="verDetalle(b.moneda)">
-              <div class="label">{{ b.moneda }}</div>
-              <div class="amount" [ngClass]="'money-' + b.moneda.toLowerCase()">
+            <div class="total-card" [ngClass]="b.moneda.toLowerCase()">
+              <div class="total-label">SALDO {{ b.moneda }}</div>
+              <div class="total-amount" [class.negative]="b.saldo < 0">
                 {{ formatMoney(b.saldo, b.moneda) }}
               </div>
-              @if (detalleMoneda === b.moneda && detalles.length > 0) {
-                <div class="detalle-overlay animate-fadeInUp" (click)="$event.stopPropagation()">
-                  @for (d of detalles; track d.metodo_id) {
-                    <div class="detalle-row">
-                      <span>{{ d.metodo_nombre }}</span>
-                      <span class="fw-bold">{{ formatMoney(d.saldo, b.moneda) }}</span>
-                    </div>
-                  }
-                </div>
-              }
             </div>
           </div>
         }
@@ -46,7 +36,7 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
 
       <!-- Cotizaciones -->
       @if (cotizaciones.length > 0) {
-        <div class="glass-card-solid mb-4" style="padding: 1rem;">
+        <div class="glass-card-solid mb-4" style="padding: 0.75rem 1rem;">
           <div class="d-flex gap-4 flex-wrap align-items-center">
             <span style="font-weight: 700; font-size: 0.85rem;">📊 Dólar:</span>
             @for (c of cotizaciones; track c.casa) {
@@ -62,24 +52,64 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
 
       <!-- Tabs -->
       <div class="nav-tabs-premium mb-3">
-        <button class="nav-link" [class.active]="tab === 'balance'" (click)="tab = 'balance'">📊 Movimientos</button>
-        <button class="nav-link" [class.active]="tab === 'diario'" (click)="tab = 'diario'; cargarDiario()">📅 Reporte Diario</button>
+        <button class="nav-link" [class.active]="tab === 'billeteras'" (click)="tab = 'billeteras'; cargarTodasBilleteras()">💳 Billeteras</button>
+        <button class="nav-link" [class.active]="tab === 'movimientos'" (click)="tab = 'movimientos'; cargarDiario()">📅 Movimientos</button>
         <button class="nav-link" [class.active]="tab === 'conversion'" (click)="tab = 'conversion'">🔄 Conversión</button>
       </div>
 
-      <!-- TAB: Movimientos generales -->
-      @if (tab === 'balance') {
+      <!-- TAB: Billeteras -->
+      @if (tab === 'billeteras') {
         <div class="animate-fadeInUp">
-          <div class="d-flex justify-content-between mb-3">
-            <h5 class="section-title">Registrar Movimiento</h5>
+          @for (moneda of ['ARS', 'USD', 'EUR']; track moneda) {
+            @if (getBilleterasPorMoneda(moneda).length > 0) {
+              <div class="billeteras-section mb-4">
+                <h5 class="section-title billetera-moneda-title">
+                  {{ moneda === 'ARS' ? '🇦🇷' : moneda === 'USD' ? '🇺🇸' : '🇪🇺' }} Billeteras {{ moneda }}
+                  <span class="billetera-total" [ngClass]="'money-' + moneda.toLowerCase()">
+                    Total: {{ formatMoney(getTotalMoneda(moneda), moneda) }}
+                  </span>
+                </h5>
+                <div class="billeteras-grid">
+                  @for (d of getBilleterasPorMoneda(moneda); track d.metodo_id) {
+                    <div class="billetera-card" [class.negative]="d.saldo < 0" [class.zero]="d.saldo === 0">
+                      <div class="billetera-icon">
+                        {{ getMetodoIcon(d.metodo_tipo) }}
+                      </div>
+                      <div class="billetera-info">
+                        <div class="billetera-name">{{ d.metodo_nombre }}</div>
+                        <div class="billetera-tipo">{{ d.metodo_tipo }}</div>
+                      </div>
+                      <div class="billetera-saldo" [class.negative]="d.saldo < 0">
+                        {{ formatMoney(d.saldo, moneda) }}
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          }
+
+          <!-- Info de cómo se calcula -->
+          <div class="glass-card-solid" style="padding: 1rem; margin-top: 1rem;">
+            <div style="font-size: 0.8rem; color: var(--text-muted);">
+              <strong>📌 ¿Cómo se calcula el saldo de cada billetera?</strong><br>
+              <span style="color: var(--success);">+ Cobros de clientes</span> ·
+              <span style="color: var(--danger);">− Pagos a proveedores</span> ·
+              <span style="color: var(--success);">+ Ingresos generales</span> ·
+              <span style="color: var(--danger);">− Egresos generales</span><br>
+              <span style="opacity: 0.7;">Los pagos con tarjeta-puente no afectan las billeteras de efectivo/transferencia.</span>
+            </div>
           </div>
-          <div class="glass-card-solid mb-3">
+
+          <!-- Registrar Movimiento (Ingreso/Egreso) -->
+          <div class="glass-card-solid mt-4">
+            <h5 class="section-title">📝 Registrar Movimiento</h5>
             <div class="row g-3">
               <div class="col-md-3">
                 <label class="form-label-elite">Tipo</label>
                 <select class="form-select-elite w-100" [(ngModel)]="movForm.tipo">
-                  <option value="INGRESO_GENERAL">Ingreso General</option>
-                  <option value="EGRESO_GENERAL">Egreso General</option>
+                  <option value="INGRESO_GENERAL">📥 Ingreso General</option>
+                  <option value="EGRESO_GENERAL">📤 Egreso General</option>
                 </select>
               </div>
               <div class="col-md-2">
@@ -95,11 +125,11 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
                 <input type="number" step="0.01" class="form-control-elite w-100" [(ngModel)]="movForm.monto" />
               </div>
               <div class="col-md-3">
-                <label class="form-label-elite">Método Pago</label>
+                <label class="form-label-elite">Billetera</label>
                 <select class="form-select-elite w-100" [(ngModel)]="movForm.metodo_pago_id">
                   <option [ngValue]="null">Seleccionar...</option>
                   @for (m of metodos; track m.id) {
-                    <option [ngValue]="m.id">{{ m.nombre }}</option>
+                    <option [ngValue]="m.id">{{ getMetodoIcon(m.tipo) }} {{ m.nombre }}</option>
                   }
                 </select>
               </div>
@@ -107,38 +137,49 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
                 <button class="btn-elite w-100" (click)="registrarMovimiento()"><span>Registrar</span></button>
               </div>
               <div class="col-12">
-                <input class="form-control-elite w-100" placeholder="Observaciones" [(ngModel)]="movForm.observaciones" />
+                <input class="form-control-elite w-100" placeholder="Observaciones / Concepto" [(ngModel)]="movForm.observaciones" />
               </div>
             </div>
           </div>
         </div>
       }
 
-      <!-- TAB: Reporte Diario -->
-      @if (tab === 'diario') {
+      <!-- TAB: Movimientos -->
+      @if (tab === 'movimientos') {
         <div class="animate-fadeInUp">
-          <div class="d-flex gap-2 mb-3 align-items-center">
+          <div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
             <input type="date" class="form-control-elite" [(ngModel)]="fechaDiario" (change)="cargarDiario()" style="width: 200px;" />
             @for (t of reporteDiario?.totales || []; track t.moneda) {
               <div class="stat-card" style="padding: 0.5rem 1rem;">
                 <span style="font-size: 0.7rem; color: var(--text-muted);">{{ t.moneda }}</span>
-                <div style="font-size: 0.8rem;"><span style="color: var(--success);">+{{ t.ingresos | number:'1.2-2' }}</span> / <span style="color: var(--danger);">-{{ t.egresos | number:'1.2-2' }}</span></div>
+                <div style="font-size: 0.8rem;">
+                  <span style="color: var(--success);">+{{ t.ingresos | number:'1.2-2' }}</span> /
+                  <span style="color: var(--danger);">-{{ t.egresos | number:'1.2-2' }}</span>
+                </div>
               </div>
             }
           </div>
 
           <div class="glass-card-solid" style="padding: 0; overflow-x: auto;">
             <table class="table-premium">
-              <thead><tr><th>Hora</th><th>Tipo</th><th>Moneda</th><th>Monto</th><th>Método</th><th>Detalle</th><th></th></tr></thead>
+              <thead><tr><th>Hora</th><th>Tipo</th><th>Moneda</th><th>Monto</th><th>Billetera</th><th>Detalle</th><th></th></tr></thead>
               <tbody>
                 @for (m of reporteDiario?.movimientos || []; track m.id) {
                   <tr [class.anulado]="m.anulado">
                     <td>{{ formatHora(m.fecha) }}</td>
-                    <td><span class="status-pill" [ngClass]="m.tipo === 'COBRO_CLIENTE' || m.tipo === 'INGRESO_GENERAL' ? 'activa' : 'consumida'">{{ m.tipo }}</span></td>
+                    <td>
+                      <span class="status-pill" [ngClass]="getTipoPillClass(m.tipo)">
+                        {{ getTipoLabel(m.tipo) }}
+                      </span>
+                    </td>
                     <td>{{ m.moneda }}</td>
-                    <td class="fw-bold" [ngClass]="'money-' + m.moneda.toLowerCase()">{{ m.monto | number:'1.2-2' }}</td>
+                    <td class="fw-bold" [ngClass]="getMontoClass(m)">
+                      {{ getMontoPrefix(m) }}{{ (m.monto < 0 ? -m.monto : m.monto) | number:'1.2-2' }}
+                    </td>
                     <td>{{ m.metodo_nombre || '-' }}</td>
-                    <td style="font-size: 0.8rem; color: var(--text-secondary);">{{ m.observaciones || m.cliente_nombre || m.proveedor_nombre || '-' }}</td>
+                    <td style="font-size: 0.8rem; color: var(--text-secondary);">
+                      {{ m.observaciones || m.cliente_nombre || m.proveedor_nombre || '-' }}
+                    </td>
                     <td>
                       @if (!m.anulado) {
                         <button class="btn-danger-elite" style="padding: 0.2rem 0.5rem; font-size: 0.65rem;" (click)="eliminarMovimiento(m.id)">🗑️</button>
@@ -162,8 +203,17 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
             <div class="row g-3">
               <div class="col-md-2">
                 <label class="form-label-elite">Moneda Origen</label>
-                <select class="form-select-elite w-100" [(ngModel)]="convForm.moneda_origen">
+                <select class="form-select-elite w-100" [(ngModel)]="convForm.moneda_origen" (change)="cargarMetodosConvOrigen()">
                   <option value="ARS">ARS</option><option value="USD">USD</option><option value="EUR">EUR</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label-elite">Billetera Origen</label>
+                <select class="form-select-elite w-100" [(ngModel)]="convForm.metodo_origen_id">
+                  <option [ngValue]="null">Seleccionar...</option>
+                  @for (m of metodosConvOrigen; track m.id) {
+                    <option [ngValue]="m.id">{{ m.nombre }}</option>
+                  }
                 </select>
               </div>
               <div class="col-md-2">
@@ -175,8 +225,17 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
               </div>
               <div class="col-md-2">
                 <label class="form-label-elite">Moneda Destino</label>
-                <select class="form-select-elite w-100" [(ngModel)]="convForm.moneda_destino">
+                <select class="form-select-elite w-100" [(ngModel)]="convForm.moneda_destino" (change)="cargarMetodosConvDestino()">
                   <option value="ARS">ARS</option><option value="USD">USD</option><option value="EUR">EUR</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label-elite">Billetera Destino</label>
+                <select class="form-select-elite w-100" [(ngModel)]="convForm.metodo_destino_id">
+                  <option [ngValue]="null">Seleccionar...</option>
+                  @for (m of metodosConvDestino; track m.id) {
+                    <option [ngValue]="m.id">{{ m.nombre }}</option>
+                  }
                 </select>
               </div>
               <div class="col-md-2">
@@ -197,33 +256,76 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
   `,
   styles: [`
     .section-title { font-weight: 700; font-size: 1rem; margin-bottom: 1rem; }
-    .detalle-overlay {
-      margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color);
-    }
-    .detalle-row {
-      display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.8rem;
-    }
     .anulado { opacity: 0.4; }
+
+    /* Total cards */
+    .total-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.25rem 1.5rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    .total-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+    .total-card.ars { border-left: 4px solid #3b82f6; }
+    .total-card.usd { border-left: 4px solid #10b981; }
+    .total-card.eur { border-left: 4px solid #f59e0b; }
+    .total-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+    .total-amount { font-size: 1.6rem; font-weight: 800; color: var(--text-primary); }
+    .total-amount.negative { color: var(--danger); }
+
+    /* Billeteras */
+    .billeteras-section { }
+    .billetera-moneda-title {
+      display: flex; align-items: center; gap: 0.75rem;
+      font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem;
+    }
+    .billetera-total { font-size: 0.85rem; font-weight: 600; margin-left: auto; }
+    .billeteras-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.75rem;
+    }
+    .billetera-card {
+      display: flex; align-items: center; gap: 0.75rem;
+      background: var(--glass-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      transition: all 0.3s ease;
+    }
+    .billetera-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+    .billetera-card.negative { border-color: var(--danger); background: rgba(239, 68, 68, 0.05); }
+    .billetera-card.zero { opacity: 0.6; }
+    .billetera-icon { font-size: 1.5rem; }
+    .billetera-info { flex: 1; }
+    .billetera-name { font-weight: 700; font-size: 0.85rem; }
+    .billetera-tipo { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .billetera-saldo { font-size: 1.1rem; font-weight: 800; color: var(--success); }
+    .billetera-saldo.negative { color: var(--danger); }
   `]
 })
 export class CajaComponent implements OnInit {
   balances: BalanceCaja[] = [];
-  detalles: DetalleCaja[] = [];
-  detalleMoneda: Moneda | null = null;
+  allDetalles: { [moneda: string]: DetalleCaja[] } = {};
   cotizaciones: Cotizacion[] = [];
   metodos: MetodoPago[] = [];
+  metodosConvOrigen: MetodoPago[] = [];
+  metodosConvDestino: MetodoPago[] = [];
   reporteDiario: ReporteDiario | null = null;
   fechaDiario = new Date().toISOString().split('T')[0];
-  tab: CajaTab = 'balance';
+  tab: CajaTab = 'billeteras';
 
   movForm = { tipo: 'INGRESO_GENERAL', moneda: 'ARS' as Moneda, monto: 0, metodo_pago_id: null as number | null, observaciones: '' };
-  convForm = { moneda_origen: 'USD' as Moneda, moneda_destino: 'ARS' as Moneda, monto_origen: 0, monto_destino: 0, observaciones: '' };
+  convForm = { moneda_origen: 'USD' as Moneda, moneda_destino: 'ARS' as Moneda, monto_origen: 0, monto_destino: 0, metodo_origen_id: null as number | null, metodo_destino_id: null as number | null, observaciones: '' };
 
   constructor(private api: ApiService, private confirmSvc: ConfirmService) {}
 
   ngOnInit(): void {
     this.cargarBalances();
     this.cargarMetodos();
+    this.cargarTodasBilleteras();
     this.api.getCotizaciones().subscribe({ next: (c) => this.cotizaciones = c.slice(0, 4) });
   }
 
@@ -235,10 +337,29 @@ export class CajaComponent implements OnInit {
     this.api.getMetodosPago(this.movForm.moneda).subscribe({ next: (m) => this.metodos = m });
   }
 
-  verDetalle(moneda: Moneda): void {
-    if (this.detalleMoneda === moneda) { this.detalleMoneda = null; return; }
-    this.detalleMoneda = moneda;
-    this.api.getDetalleCaja(moneda).subscribe({ next: (d) => this.detalles = d });
+  cargarTodasBilleteras(): void {
+    for (const moneda of ['ARS', 'USD', 'EUR']) {
+      this.api.getDetalleCaja(moneda as Moneda).subscribe({
+        next: (d) => this.allDetalles[moneda] = d
+      });
+    }
+  }
+
+  cargarMetodosConvOrigen(): void {
+    this.api.getMetodosPago(this.convForm.moneda_origen).subscribe({ next: (m) => this.metodosConvOrigen = m });
+  }
+
+  cargarMetodosConvDestino(): void {
+    this.api.getMetodosPago(this.convForm.moneda_destino).subscribe({ next: (m) => this.metodosConvDestino = m });
+  }
+
+  getBilleterasPorMoneda(moneda: string): DetalleCaja[] {
+    return this.allDetalles[moneda] || [];
+  }
+
+  getTotalMoneda(moneda: string): number {
+    const b = this.balances.find(x => x.moneda === moneda);
+    return b ? b.saldo : 0;
   }
 
   registrarMovimiento(): void {
@@ -254,6 +375,7 @@ export class CajaComponent implements OnInit {
       next: () => {
         this.movForm = { tipo: 'INGRESO_GENERAL', moneda: 'ARS', monto: 0, metodo_pago_id: null, observaciones: '' };
         this.cargarBalances();
+        this.cargarTodasBilleteras();
       }
     });
   }
@@ -275,6 +397,7 @@ export class CajaComponent implements OnInit {
         this.confirmSvc.toast('Movimiento eliminado');
         this.cargarDiario();
         this.cargarBalances();
+        this.cargarTodasBilleteras();
       },
       error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al eliminar', 'error')
     });
@@ -284,13 +407,52 @@ export class CajaComponent implements OnInit {
     if (!this.convForm.monto_origen || !this.convForm.monto_destino) return;
     this.api.convertirMoneda(this.convForm).subscribe({
       next: () => {
-        this.convForm = { moneda_origen: 'USD', moneda_destino: 'ARS', monto_origen: 0, monto_destino: 0, observaciones: '' };
+        this.convForm = { moneda_origen: 'USD', moneda_destino: 'ARS', monto_origen: 0, monto_destino: 0, metodo_origen_id: null, metodo_destino_id: null, observaciones: '' };
         this.cargarBalances();
+        this.cargarTodasBilleteras();
       }
     });
   }
 
-  formatMoney(valor: number, moneda: Moneda): string {
+  getMetodoIcon(tipo: string): string {
+    switch (tipo) {
+      case 'EFECTIVO': return '💵';
+      case 'TRANSFERENCIA': return '🏦';
+      case 'TARJETA': return '💳';
+      default: return '💰';
+    }
+  }
+
+  getTipoPillClass(tipo: string): string {
+    if (tipo === 'COBRO_CLIENTE' || tipo === 'INGRESO_GENERAL') return 'activa';
+    if (tipo === 'PAGO_PROVEEDOR' || tipo === 'EGRESO_GENERAL') return 'consumida';
+    return 'pendiente';
+  }
+
+  getTipoLabel(tipo: string): string {
+    switch (tipo) {
+      case 'COBRO_CLIENTE': return '📥 Cobro';
+      case 'PAGO_PROVEEDOR': return '📤 Pago Prov';
+      case 'INGRESO_GENERAL': return '📥 Ingreso';
+      case 'EGRESO_GENERAL': return '📤 Egreso';
+      case 'CONVERSION': return '🔄 Conversión';
+      default: return tipo;
+    }
+  }
+
+  getMontoClass(m: any): string {
+    if (m.tipo === 'COBRO_CLIENTE' || m.tipo === 'INGRESO_GENERAL') return 'money-positive';
+    if (m.tipo === 'PAGO_PROVEEDOR' || m.tipo === 'EGRESO_GENERAL') return 'money-negative';
+    return '';
+  }
+
+  getMontoPrefix(m: any): string {
+    if (m.tipo === 'COBRO_CLIENTE' || m.tipo === 'INGRESO_GENERAL') return '+';
+    if (m.tipo === 'PAGO_PROVEEDOR' || m.tipo === 'EGRESO_GENERAL') return '-';
+    return '';
+  }
+
+  formatMoney(valor: number, moneda: string): string {
     const symbol = moneda === 'USD' ? 'US$' : moneda === 'EUR' ? '€' : '$';
     return `${symbol} ${new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2 }).format(valor)}`;
   }

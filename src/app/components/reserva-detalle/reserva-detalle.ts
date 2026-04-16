@@ -956,22 +956,31 @@ export class ReservaDetalleComponent implements OnInit {
   }
 
   guardarServicio(): void {
+    // Asegurar que los campos numéricos sean numbers
+    const formData = {
+      ...this.svcForm,
+      precio_cliente: Number(this.svcForm.precio_cliente) || 0,
+      costo_proveedor: Number(this.svcForm.costo_proveedor) || 0,
+      hotel_noches: this.svcForm.hotel_noches ? Number(this.svcForm.hotel_noches) : null
+    };
+
     if (this.editandoServicioId) {
       // Mode: EDIT
-      const { tipo_servicio, ...updateData } = this.svcForm;
-      this.api.updateServicio(this.editandoServicioId, { tipo_servicio, ...updateData } as Partial<ServicioDetallado>).subscribe({
+      this.api.updateServicio(this.editandoServicioId, formData as Partial<ServicioDetallado>).subscribe({
         next: () => {
           this.cancelarFormServicio();
           this.cargarTodo();
-        }
+        },
+        error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al actualizar servicio', 'error')
       });
     } else {
       // Mode: CREATE
-      this.api.crearServicio({ id_reserva: this.idReserva, ...this.svcForm } as Partial<ServicioDetallado>).subscribe({
+      this.api.crearServicio({ id_reserva: this.idReserva, ...formData } as Partial<ServicioDetallado>).subscribe({
         next: () => {
           this.cancelarFormServicio();
           this.cargarTodo();
-        }
+        },
+        error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al crear servicio', 'error')
       });
     }
   }

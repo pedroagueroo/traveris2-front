@@ -122,6 +122,7 @@ export interface Reserva {
   vuelos?: Vuelo[];
   servicios?: ServicioDetallado[];
   archivos?: ReservaArchivo[];
+  tarjetas?: TarjetaCliente[];
 }
 
 export interface Pasajero {

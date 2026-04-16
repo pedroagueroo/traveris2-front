@@ -11,7 +11,7 @@ import {
   TarjetaCliente, Recibo, Moneda, TipoServicio
 } from '../../models';
 
-type Tab = 'info' | 'servicios' | 'deudas' | 'pagos' | 'archivos' | 'recibos';
+type Tab = 'info' | 'servicios' | 'deudas' | 'pagos' | 'archivos' | 'recibos' | 'tarjetas';
 
 interface ServicioForm {
   tipo_servicio: string;
@@ -784,6 +784,53 @@ interface ServicioForm {
             }
           </div>
         }
+
+        <!-- TAB: TARJETAS PUENTE -->
+        @if (tabActiva === 'tarjetas') {
+          <div class="animate-fadeInUp">
+            <div class="d-flex justify-content-between mb-3">
+              <h5 class="section-title">💳 Tarjetas con Saldo Disponible ({{ reserva.tarjetas?.length || 0 }})</h5>
+              <small class="text-muted" style="font-size: 0.75rem;">Tarjetas originadas en esta reserva útiles para pagar.</small>
+            </div>
+
+            @for (t of reserva.tarjetas; track t.id) {
+              <div class="glass-card-solid mb-2" style="padding: 1rem;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <div>
+                    <div class="fw-bold" style="font-size: 1.1rem; letter-spacing: 0.05em;">
+                      {{ t.banco_detectado }} •••• {{ t.numero_mask }}
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                      Titular: {{ t.titular }} &nbsp;|&nbsp; Expira: {{ t.expiracion }}
+                    </div>
+                    <div class="mt-1">
+                      @if (t.proveedor_vinculado_nombre) {
+                        <span class="status-pill status-activa" style="background: rgba(var(--primary-rgb), 0.15); color: var(--primary);">
+                          Vinculada a Proveedor: {{ t.proveedor_vinculado_nombre }}
+                        </span>
+                      } @else {
+                        <span class="status-pill text-muted">Aún sin proveedor vinculado</span>
+                      }
+                    </div>
+                  </div>
+                  <div class="text-end">
+                    <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Saldo Actual</div>
+                    <div class="fw-bold" [ngClass]="'money-' + t.moneda.toLowerCase()" style="font-size: 1.25rem;">
+                      {{ t.monto_disponible | number:'1.2-2' }} {{ t.moneda }}
+                    </div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">
+                      Original: {{ t.monto_original | number:'1.2-2' }} {{ t.moneda }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            } @empty {
+              <div class="glass-card-solid" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                No hay tarjetas puente con saldo a favor asociadas a los pagos de esta reserva.
+              </div>
+            }
+          </div>
+        }
       }
     </div>
   `,
@@ -875,9 +922,10 @@ export class ReservaDetalleComponent implements OnInit {
     { key: 'info', label: 'Info', icon: '📋' },
     { key: 'servicios', label: 'Servicios', icon: '🏨' },
     { key: 'deudas', label: 'Deudas', icon: '📊' },
-    { key: 'pagos', label: 'Pagos', icon: '💳' },
+    { key: 'pagos', label: 'Pagos', icon: '💸' },
     { key: 'archivos', label: 'Archivos', icon: '📎' },
-    { key: 'recibos', label: 'Recibos', icon: '🧾' }
+    { key: 'recibos', label: 'Recibos', icon: '🧾' },
+    { key: 'tarjetas', label: 'Tarjetas Puente', icon: '💳' }
   ];
 
   svcForm: ServicioForm = this.resetSvcForm();

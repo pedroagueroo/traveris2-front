@@ -35,6 +35,7 @@ export interface AgenciaConfig {
   email: string | null;
   pagina_web: string | null;
   logo_url: string | null;
+  banner_url: string | null;
   recibo_template: string;
   recibo_config: ReciboConfig;
   recibo_footer_legal: string | null;
@@ -205,6 +206,9 @@ export interface ServicioDetallado {
   crucero_cabina: string | null;
   crucero_fecha_embarque: string | null;
   crucero_fecha_desembarque: string | null;
+  // Fechas de pago
+  fecha_sena: string | null;
+  fecha_saldar: string | null;
   // Financieros
   id_proveedor: number | null;
   moneda: Moneda;

@@ -20,6 +20,9 @@ interface ServicioForm {
   moneda: string;
   precio_cliente: number;
   costo_proveedor: number;
+  // Fechas de pago generales
+  fecha_sena: string;
+  fecha_saldar: string;
   // HOTEL
   hotel_nombre: string;
   hotel_ciudad: string;
@@ -231,6 +234,19 @@ interface ServicioForm {
                   <div class="col-md-10">
                     <label class="form-label-elite">Descripción / Notas</label>
                     <input class="form-control-elite w-100" [(ngModel)]="svcForm.descripcion" placeholder="Detalle adicional del servicio" />
+                  </div>
+                </div>
+
+                <!-- Fechas de pago generales -->
+                <div class="tipo-fields-label">💰 Fechas de Pago</div>
+                <div class="row g-2">
+                  <div class="col-md-3">
+                    <label class="form-label-elite">Fecha de Seña</label>
+                    <input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.fecha_sena" />
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label-elite">Fecha para Saldar</label>
+                    <input type="date" class="form-control-elite w-100" [(ngModel)]="svcForm.fecha_saldar" />
                   </div>
                 </div>
 
@@ -484,6 +500,17 @@ interface ServicioForm {
                     </div>
                   }
 
+                  @if (s.fecha_sena || s.fecha_saldar) {
+                    <div class="svc-field">
+                      <span class="svc-label">📅 Fecha Seña</span>
+                      <span class="svc-value">{{ s.fecha_sena ? formatDate(s.fecha_sena) : '-' }}</span>
+                    </div>
+                    <div class="svc-field">
+                      <span class="svc-label">📅 Fecha Saldar</span>
+                      <span class="svc-value">{{ s.fecha_saldar ? formatDate(s.fecha_saldar) : '-' }}</span>
+                    </div>
+                  }
+
                 </div>
 
                 <!-- Footer financiero -->
@@ -574,10 +601,156 @@ interface ServicioForm {
         <!-- TAB: PAGOS -->
         @if (tabActiva === 'pagos') {
           <div class="animate-fadeInUp">
-            <div class="d-flex justify-content-between mb-3">
-              <h5 class="section-title">💳 Pagos ({{ pagos.length }})</h5>
-              <button class="btn-elite" (click)="mostrarFormPago = !mostrarFormPago"><span>➕ Registrar Pago</span></button>
+            <div class="d-flex justify-content-between mb-3 align-items-center">
+              <h5 class="section-title mb-0">💳 Pagos ({{ pagos.length }})</h5>
+              <div class="d-flex gap-2">
+                <button class="btn-elite-outline" (click)="mostrarSelectorDeudasPagoMultiple = true; mostrarFormPago = false; mostrarFormPagoMultiple = false;"><span>🧾 Pago Múltiple</span></button>
+                <button class="btn-elite" (click)="mostrarFormPago = !mostrarFormPago; mostrarSelectorDeudasPagoMultiple = false; mostrarFormPagoMultiple = false;"><span>➕ Registrar Pago</span></button>
+              </div>
             </div>
+
+            @if (mostrarSelectorDeudasPagoMultiple) {
+              <div class="glass-card-solid mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h6 class="fw-bold m-0 text-primary">Selecciona las deudas a cobrar en conjunto</h6>
+                  <button class="btn-elite-outline btn-sm" (click)="mostrarSelectorDeudasPagoMultiple = false">Cancelar</button>
+                </div>
+                <div class="row g-3">
+                  @for (d of deudasCliente; track d.id) {
+                    @if (d.saldo > 0) {
+                      <div class="col-md-6">
+                        <div class="deuda-item d-flex justify-content-between align-items-center" style="border: 1px solid var(--border-light); padding: 0.75rem; border-radius: 8px;">
+                          <div class="d-flex align-items-center gap-2">
+                            <input type="checkbox" class="form-check-input" [checked]="deudasSeleccionadas.includes(d.id)" (change)="toggleDeudaSeleccionada(d.id)">
+                            <div>
+                              <span class="fw-semibold" style="font-size: 0.85rem;">{{ d.servicio_nombre || d.tipo_servicio }}</span>
+                              <div style="font-size: 0.7rem; color: var(--text-muted);">{{ d.proveedor_nombre || '-' }}</div>
+                            </div>
+                          </div>
+                          <div class="fw-bold text-end" [ngClass]="'money-' + d.moneda.toLowerCase()" style="font-size: 0.9rem;">
+                            {{ d.saldo | number:'1.2-2' }} {{ d.moneda }}
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  } @empty {
+                    <div class="text-muted p-3 text-center w-100">No hay deudas pendientes para realizar un cobro múltiple.</div>
+                  }
+                </div>
+                <div class="text-end mt-4">
+                  <button class="btn-elite" [disabled]="deudasSeleccionadas.length === 0" (click)="iniciarPagoMultiple()">
+                    Siguiente ({{ deudasSeleccionadas.length }} servicios seleccionados)
+                  </button>
+                </div>
+              </div>
+            }
+
+            @if (mostrarFormPagoMultiple) {
+              <div class="glass-card-solid mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h6 class="fw-bold m-0">🧾 Pago Múltiple — {{ pagosMultiplesList.length }} cobros</h6>
+                  <button class="btn-elite-outline" (click)="cancelarPagoMultiple()">Cancelar</button>
+                </div>
+
+                @for (p of pagosMultiplesList; track p.deuda.id; let i = $index) {
+                  <div style="border: 1px solid var(--border-light); padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
+                    <h6 class="fw-bold mb-3">Cobro #{{ i + 1 }}: {{ p.deuda.servicio_nombre || p.deuda.tipo_servicio }} — <span class="status-pill status-activa" style="font-size: 0.7rem;">Saldo: {{ p.deuda.saldo | number:'1.2-2' }} {{ p.deuda.moneda }}</span></h6>
+                    <div class="row g-3">
+                      <div class="col-md-3">
+                        <label class="form-label-elite">Tipo *</label>
+                        <select class="form-select-elite w-100" [(ngModel)]="pagosMultiplesList[i].request.tipo" disabled>
+                          <option value="COBRO_CLIENTE">Cobro Cliente</option>
+                        </select>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label-elite">Moneda *</label>
+                        <select class="form-select-elite w-100" [(ngModel)]="pagosMultiplesList[i].request.moneda" (change)="cargarMetodosPago()">
+                          <option value="ARS">ARS</option>
+                          <option value="USD">USD</option>
+                          <option value="EUR">EUR</option>
+                        </select>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label-elite">Monto *</label>
+                        <input type="number" step="0.01" class="form-control-elite w-100" [(ngModel)]="pagosMultiplesList[i].request.monto" />
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label-elite">Método Pago</label>
+                        <select class="form-select-elite w-100" [(ngModel)]="pagosMultiplesList[i].request.metodo_pago_id" (change)="onMetodoPagoCambiaMultiple(i)">
+                          <option [ngValue]="null">Seleccionar...</option>
+                          @for (m of metodosPago; track m.id) {
+                            <option [ngValue]="m.id">{{ m.nombre }}</option>
+                          }
+                        </select>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label-elite">Deuda a aplicar</label>
+                        <select class="form-select-elite w-100" [ngModel]="pagosMultiplesList[i].request.id_deuda" disabled>
+                          <option [ngValue]="p.deuda.id">{{ p.deuda.servicio_nombre || p.deuda.tipo_servicio }} — Saldo: {{ p.deuda.saldo | number:'1.2-2' }} {{ p.deuda.moneda }}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label-elite">Observaciones</label>
+                        <input class="form-control-elite w-100" [(ngModel)]="pagosMultiplesList[i].request.observaciones" />
+                      </div>
+                    </div>
+
+                    <!-- TARJETA NUEVA: COBRO_CLIENTE con método TARJETA -->
+                    @if (pagosMultiplesList[i].esTarjeta) {
+                      <div class="tipo-fields-label">💳 Datos de Tarjeta del Cliente</div>
+                      <div class="row g-3">
+                        <div class="col-md-4">
+                          <label class="form-label-elite">Titular *</label>
+                          <input class="form-control-elite w-100" [(ngModel)]="pagosMultiplesList[i].request.tarjeta_titular" placeholder="Nombre del titular" />
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label-elite">Número de Tarjeta *</label>
+                          <input class="form-control-elite w-100" [(ngModel)]="pagosMultiplesList[i].request.tarjeta_numero" placeholder="4507 9912 3456 7890" maxlength="19" (input)="detectarBancoFrontendMultiple(i)" />
+                          @if (pagosMultiplesList[i].bancoDetectado) {
+                            <small style="color: var(--primary); font-size: 0.7rem; font-weight: 600;">🏦 {{ pagosMultiplesList[i].bancoDetectado }}</small>
+                          }
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label-elite">Expiración</label>
+                          <input class="form-control-elite w-100" [(ngModel)]="pagosMultiplesList[i].request.tarjeta_expiracion" placeholder="MM/YY" maxlength="5" />
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label-elite">Cuotas</label>
+                          <select class="form-select-elite w-100" [(ngModel)]="pagosMultiplesList[i].request.tarjeta_cuotas" (change)="calcularMontoConInteresMultiple(i)">
+                            <option [ngValue]="1">1 cuota (sin interés)</option>
+                            <option [ngValue]="3">3 cuotas</option>
+                            <option [ngValue]="6">6 cuotas</option>
+                            <option [ngValue]="9">9 cuotas</option>
+                            <option [ngValue]="12">12 cuotas</option>
+                            <option [ngValue]="18">18 cuotas</option>
+                          </select>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label-elite">Interés (%)</label>
+                          <input type="number" step="0.01" min="0" class="form-control-elite w-100" [(ngModel)]="pagosMultiplesList[i].request.tarjeta_interes" (input)="calcularMontoConInteresMultiple(i)" placeholder="0" />
+                        </div>
+                        <div class="col-md-4">
+                          @if (pagosMultiplesList[i].request.tarjeta_cuotas > 1 && pagosMultiplesList[i].request.tarjeta_interes > 0) {
+                            <label class="form-label-elite">Monto Total c/Interés</label>
+                            <div style="padding: 0.5rem; background: rgba(var(--primary-rgb),0.1); border-radius: 8px; font-weight: 700; font-size: 0.9rem;">
+                              {{ pagosMultiplesList[i].montoConInteres | number:'1.2-2' }} {{ pagosMultiplesList[i].request.moneda }}
+                              <small style="display:block; font-weight:400; font-size:0.7rem; color: var(--text-muted);">
+                                {{ pagosMultiplesList[i].request.tarjeta_cuotas }} cuotas de {{ pagosMultiplesList[i].montoConInteres / pagosMultiplesList[i].request.tarjeta_cuotas | number:'1.2-2' }}
+                              </small>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+
+                <div class="d-flex gap-2 mt-3">
+                  <button class="btn-success-elite" (click)="confirmarPagosMultiples()"><span>Registrar Todos</span></button>
+                  <button class="btn-elite-outline" (click)="cancelarPagoMultiple()">Cancelar</button>
+                </div>
+              </div>
+            }
 
             @if (mostrarFormPago) {
               <div class="glass-card-solid mb-3">
@@ -898,6 +1071,13 @@ interface ServicioForm {
   `]
 })
 export class ReservaDetalleComponent implements OnInit {
+  // --- PAGOS MULTIPLES ---
+  deudasSeleccionadas: number[] = [];
+  mostrarFormPagoMultiple = false;
+  mostrarSelectorDeudasPagoMultiple = false;
+  pagosMultiplesList: { deuda: DeudaClienteDetalle, request: any, esTarjeta: boolean, bancoDetectado: string, montoConInteres: number }[] = [];
+  // -----------------------
+
   reserva: Reserva | null = null;
   servicios: ServicioDetallado[] = [];
   pagos: Pago[] = [];
@@ -993,6 +1173,7 @@ export class ReservaDetalleComponent implements OnInit {
     return {
       tipo_servicio: 'HOTEL', descripcion: '', id_proveedor: null,
       moneda: 'USD', precio_cliente: 0, costo_proveedor: 0,
+      fecha_sena: '', fecha_saldar: '',
       hotel_nombre: '', hotel_ciudad: '', hotel_check_in: '', hotel_check_out: '', hotel_regimen: '', hotel_noches: null, hotel_categoria: '',
       vuelo_aerolinea: '', vuelo_nro: '', vuelo_origen: '', vuelo_destino: '', vuelo_fecha_salida: '', vuelo_fecha_llegada: '', vuelo_clase: '', vuelo_codigo_reserva: '',
       asistencia_compania: '', asistencia_plan: '', asistencia_fecha_desde: '', asistencia_fecha_hasta: '', asistencia_cobertura: '',
@@ -1041,6 +1222,7 @@ export class ReservaDetalleComponent implements OnInit {
     this.svcForm = {
       tipo_servicio: s.tipo_servicio, descripcion: s.descripcion || '', id_proveedor: s.id_proveedor,
       moneda: s.moneda, precio_cliente: s.precio_cliente, costo_proveedor: s.costo_proveedor,
+      fecha_sena: s.fecha_sena ? s.fecha_sena.substring(0,10) : '', fecha_saldar: s.fecha_saldar ? s.fecha_saldar.substring(0,10) : '',
       hotel_nombre: s.hotel_nombre || '', hotel_ciudad: s.hotel_ciudad || '', hotel_check_in: s.hotel_check_in ? s.hotel_check_in.substring(0,10) : '', hotel_check_out: s.hotel_check_out ? s.hotel_check_out.substring(0,10) : '', hotel_regimen: s.hotel_regimen || '', hotel_noches: s.hotel_noches ?? null, hotel_categoria: s.hotel_categoria || '',
       vuelo_aerolinea: s.vuelo_aerolinea || '', vuelo_nro: s.vuelo_nro || '', vuelo_origen: s.vuelo_origen || '', vuelo_destino: s.vuelo_destino || '', vuelo_fecha_salida: s.vuelo_fecha_salida ? this.toDatetimeLocal(s.vuelo_fecha_salida) : '', vuelo_fecha_llegada: s.vuelo_fecha_llegada ? this.toDatetimeLocal(s.vuelo_fecha_llegada) : '', vuelo_clase: s.vuelo_clase || '', vuelo_codigo_reserva: s.vuelo_codigo_reserva || '',
       asistencia_compania: s.asistencia_compania || '', asistencia_plan: s.asistencia_plan || '', asistencia_fecha_desde: s.asistencia_fecha_desde ? s.asistencia_fecha_desde.substring(0,10) : '', asistencia_fecha_hasta: s.asistencia_fecha_hasta ? s.asistencia_fecha_hasta.substring(0,10) : '', asistencia_cobertura: s.asistencia_cobertura || '',
@@ -1186,6 +1368,161 @@ export class ReservaDetalleComponent implements OnInit {
       });
     }
   }
+
+  // --- MÉTODOS PAGO MÚLTIPLE ---
+  toggleDeudaSeleccionada(idDeuda: number): void {
+    const idx = this.deudasSeleccionadas.indexOf(idDeuda);
+    if (idx > -1) {
+      this.deudasSeleccionadas.splice(idx, 1);
+    } else {
+      this.deudasSeleccionadas.push(idDeuda);
+    }
+  }
+
+  iniciarPagoMultiple(): void {
+    if (this.deudasSeleccionadas.length === 0) return;
+    this.mostrarSelectorDeudasPagoMultiple = false;
+    this.pagosMultiplesList = [];
+    
+    for (const idDeuda of this.deudasSeleccionadas) {
+      const deuda = this.deudasCliente.find(d => d.id === idDeuda);
+      if (deuda) {
+        this.pagosMultiplesList.push({
+          deuda,
+          request: {
+            tipo: 'COBRO_CLIENTE', 
+            moneda: deuda.moneda, 
+            monto: deuda.saldo || 0,
+            metodo_pago_id: null,
+            id_deuda: deuda.id, 
+            id_servicio: deuda.id_servicio,
+            id_reserva: this.reserva!.id,
+            id_cliente: this.reserva!.id_titular,
+            observaciones: '',
+            tarjeta_titular: '', tarjeta_numero: '', tarjeta_expiracion: '',
+            tarjeta_cuotas: 1, tarjeta_interes: 0,
+            id_tarjeta_cliente: null
+          } as any,
+          esTarjeta: false,
+          bancoDetectado: '',
+          montoConInteres: 0
+        });
+      }
+    }
+    this.mostrarFormPagoMultiple = true;
+  }
+
+  cancelarPagoMultiple(): void {
+    this.mostrarFormPagoMultiple = false;
+    this.mostrarSelectorDeudasPagoMultiple = false;
+    this.pagosMultiplesList = [];
+    this.deudasSeleccionadas = [];
+  }
+
+  onMetodoPagoCambiaMultiple(idx: number): void {
+    const p = this.pagosMultiplesList[idx];
+    const m = this.metodosPago.find(x => x.id === Number(p.request.metodo_pago_id));
+    p.esTarjeta = m?.tipo === 'TARJETA';
+  }
+
+  detectarBancoFrontendMultiple(idx: number): void {
+    const p = this.pagosMultiplesList[idx];
+    const num = (p.request.tarjeta_numero || '').replace(/\s/g, '');
+    if (num.length < 6) { p.bancoDetectado = ''; return; }
+    const bin = num.substring(0, 6);
+    if (num.startsWith('4')) {
+      if (bin.startsWith('451761') || bin.startsWith('450799')) p.bancoDetectado = 'Banco Nación (Visa)';
+      else if (bin.startsWith('450601') || bin.startsWith('455002')) p.bancoDetectado = 'Banco Provincia (Visa)';
+      else if (bin.startsWith('427562') || bin.startsWith('450903') || bin.startsWith('455500') || bin.startsWith('417309')) p.bancoDetectado = 'Banco Galicia (Visa)';
+      else if (bin.startsWith('472825') || bin.startsWith('476507') || bin.startsWith('454775') || bin.startsWith('470564')) p.bancoDetectado = 'BBVA (Visa)';
+      else if (bin.startsWith('426211') || bin.startsWith('403478')) p.bancoDetectado = 'Santander (Visa)';
+      else if (bin.startsWith('433155') || bin.startsWith('451200')) p.bancoDetectado = 'HSBC (Visa)';
+      else if (bin.startsWith('458767') || bin.startsWith('415829') || bin.startsWith('446344')) p.bancoDetectado = 'Macro (Visa)';
+      else p.bancoDetectado = 'Visa';
+    } else if (num.startsWith('5') || (parseInt(bin) >= 222100 && parseInt(bin) <= 272099)) {
+      if (bin.startsWith('515073') || bin.startsWith('525547')) p.bancoDetectado = 'Banco Nación (Mastercard)';
+      else if (bin.startsWith('517562') || bin.startsWith('531463')) p.bancoDetectado = 'Banco Galicia (Mastercard)';
+      else if (bin.startsWith('546553') || bin.startsWith('525499')) p.bancoDetectado = 'BBVA (Mastercard)';
+      else if (bin.startsWith('544407') || bin.startsWith('548510')) p.bancoDetectado = 'Santander (Mastercard)';
+      else if (bin.startsWith('531993') || bin.startsWith('536390')) p.bancoDetectado = 'Macro (Mastercard)';
+      else if (bin.startsWith('520188')) p.bancoDetectado = 'Credicoop (Mastercard)';
+      else p.bancoDetectado = 'Mastercard';
+    } else if (num.startsWith('34') || num.startsWith('37')) {
+      p.bancoDetectado = 'American Express';
+    } else if (bin.startsWith('604244') || bin.startsWith('589657') || bin.startsWith('6042') || bin.startsWith('6043')) {
+      p.bancoDetectado = 'Cabal';
+    } else if (bin.startsWith('589562')) {
+      p.bancoDetectado = 'Tarjeta Naranja';
+    } else {
+      p.bancoDetectado = '';
+    }
+  }
+
+  calcularMontoConInteresMultiple(idx: number): void {
+    const p = this.pagosMultiplesList[idx];
+    const cuotas = p.request.tarjeta_cuotas || 1;
+    const interes = p.request.tarjeta_interes || 0;
+    p.montoConInteres = p.request.monto * (1 + interes / 100);
+  }
+
+  confirmarPagosMultiples(): void {
+    // Validaciones
+    for (const p of this.pagosMultiplesList) {
+      if (!p.request.monto) {
+        this.confirmSvc.toast('Completá el monto en cada cobro', 'error');
+        return;
+      }
+      if (p.esTarjeta && (!p.request.tarjeta_numero || !p.request.tarjeta_titular)) {
+        this.confirmSvc.toast('Completá los datos de tarjeta en cada cobro que use tarjeta', 'error');
+        return;
+      }
+    }
+
+    const payloadTransformed = this.pagosMultiplesList.map(p => {
+      const r: any = {
+        id_reserva: Number(p.request.id_reserva) || null,
+        id_deuda: Number(p.request.id_deuda) || null,
+        id_servicio: Number(p.request.id_servicio) || null,
+        id_cliente: Number(p.request.id_cliente) || null,
+        tipo: 'COBRO_CLIENTE',
+        moneda: p.request.moneda,
+        monto: parseFloat(p.request.monto) || 0,
+        metodo_pago_id: p.request.metodo_pago_id ? Number(p.request.metodo_pago_id) : null,
+        observaciones: p.request.observaciones || ''
+      };
+
+      // Si es tarjeta, construir el objeto tarjeta y aplicar interés/cuotas
+      if (p.esTarjeta) {
+        r.tarjeta = {
+          titular: p.request.tarjeta_titular,
+          numero: (p.request.tarjeta_numero || '').replace(/\s/g, ''),
+          expiracion: p.request.tarjeta_expiracion
+        };
+        const cuotas = p.request.tarjeta_cuotas || 1;
+        const interes = p.request.tarjeta_interes || 0;
+        if (interes > 0) {
+          r.monto = p.request.monto * (1 + interes / 100);
+        }
+        if (cuotas > 1) {
+          const montoFinal = r.monto || p.request.monto;
+          r.observaciones = (r.observaciones || '') +
+            ` [${cuotas} cuotas de ${(montoFinal / cuotas).toFixed(2)}${interes > 0 ? ` - ${interes}% interés` : ''}${p.bancoDetectado ? ` - ${p.bancoDetectado}` : ''}]`;
+        }
+      }
+
+      return r;
+    });
+
+    this.api.registrarPagosMultiples(payloadTransformed).subscribe({
+      next: () => {
+        this.confirmSvc.toast('Pagos múltiples registrados y recibo generado');
+        this.cancelarPagoMultiple();
+        this.cargarTodo();
+      },
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al registrar múltiples pagos', 'error')
+    });
+  }
+  // -----------------------------
 
   resetPagoForm(): void {
     this.pagoForm = {

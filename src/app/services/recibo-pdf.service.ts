@@ -11,7 +11,7 @@ interface JsPDFInstance {
   setDrawColor(r: number, g: number, b: number): JsPDFInstance;
   setFillColor(r: number, g: number, b: number): JsPDFInstance;
   setFont(font: string, style?: string): JsPDFInstance;
-  text(text: string, x: number, y: number, options?: Record<string, unknown>): JsPDFInstance;
+  text(text: string | string[], x: number, y: number, options?: Record<string, unknown>): JsPDFInstance;
   rect(x: number, y: number, w: number, h: number, style?: string): JsPDFInstance;
   roundedRect(x: number, y: number, w: number, h: number, rx: number, ry: number, style?: string): JsPDFInstance;
   line(x1: number, y1: number, x2: number, y2: number): JsPDFInstance;
@@ -47,10 +47,20 @@ export class ReciboPdfService {
     const primary = this.hexToRgb(agencia?.recibo_config?.primaryColor || '#6366F1');
     const secondary = this.hexToRgb(agencia?.recibo_config?.secondaryColor || '#8B5CF6');
 
+    // Cargar banner si existe
+    let bannerBase64: string | null = null;
+    if (agencia?.banner_url) {
+      try {
+        bannerBase64 = await this.cargarImagenBase64(agencia.banner_url);
+      } catch (e) {
+        console.warn('No se pudo cargar el banner, se usará color sólido:', e);
+      }
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // COPIA 1 — AGENCIA (top half)
     // ═══════════════════════════════════════════════════════════════
-    this.dibujarRecibo(doc, recibo, agencia, reserva, primary, secondary, margin, contentW, pageW, 0, 'ORIGINAL — AGENCIA');
+    this.dibujarRecibo(doc, recibo, agencia, reserva, primary, secondary, margin, contentW, pageW, 0, 'ORIGINAL — AGENCIA', bannerBase64);
 
     // ═══════════════════════════════════════════════════════════════
     // LÍNEA DE CORTE
@@ -68,7 +78,7 @@ export class ReciboPdfService {
     // ═══════════════════════════════════════════════════════════════
     // COPIA 2 — CLIENTE (bottom half)
     // ═══════════════════════════════════════════════════════════════
-    this.dibujarRecibo(doc, recibo, agencia, reserva, primary, secondary, margin, contentW, pageW, halfH + 2, 'DUPLICADO — CLIENTE');
+    this.dibujarRecibo(doc, recibo, agencia, reserva, primary, secondary, margin, contentW, pageW, halfH + 2, 'DUPLICADO — CLIENTE', bannerBase64);
 
     // ANULADO watermark
     if (recibo.anulado) {
@@ -91,47 +101,107 @@ export class ReciboPdfService {
     primary: { r: number; g: number; b: number },
     secondary: { r: number; g: number; b: number },
     margin: number, contentW: number, pageW: number,
-    offsetY: number, copyLabel: string
+    offsetY: number, copyLabel: string,
+    bannerBase64: string | null = null
   ): void {
+    const headerH = bannerBase64 ? 28 : 22;
     let y = offsetY + 5;
 
     // ── HEADER ──
-    doc.setFillColor(primary.r, primary.g, primary.b);
-    doc.rect(0, offsetY, pageW, 22, 'F');
+    if (bannerBase64) {
+      // 1. Dibujar el banner como fondo del header
+      try {
+        doc.addImage(bannerBase64, 'JPEG', 0, offsetY, pageW, headerH);
+      } catch {
+        doc.setFillColor(primary.r, primary.g, primary.b);
+        doc.rect(0, offsetY, pageW, headerH, 'F');
+      }
 
-    // Agency name
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.setTextColor(255, 255, 255);
-    doc.text(agencia?.nombre_comercial || agencia?.empresa_nombre || 'Traveris Pro', margin, y + 6);
+      // 2. Crear efecto de sombra para legibilidad del texto sobre la imagen
+      //    Dibujamos el texto en negro (sombra) desplazado 0.3mm, luego en blanco encima
+      const drawTextWithShadow = (text: string, x: number, ty: number, opts?: any) => {
+        doc.setTextColor(0, 0, 0);
+        doc.text(text, x + 0.3, ty + 0.3, opts);
+        doc.setTextColor(255, 255, 255);
+        doc.text(text, x, ty, opts);
+      };
 
-    // Contact
-    doc.setFontSize(6.5);
-    doc.setFont('helvetica', 'normal');
-    const contactLine = [agencia?.domicilio, agencia?.telefono, agencia?.email].filter(Boolean).join(' | ');
-    doc.text(contactLine, margin, y + 11);
+      // Agency name
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      drawTextWithShadow(agencia?.nombre_comercial || agencia?.empresa_nombre || 'Traveris Pro', margin, y + 7);
 
-    // CUIT
-    const fiscalLine = [
-      agencia?.cuit_cuil ? `CUIT: ${agencia.cuit_cuil}` : null,
-      agencia?.condicion_fiscal
-    ].filter(Boolean).join(' — ');
-    if (fiscalLine) doc.text(fiscalLine, margin, y + 15);
+      // Contact
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      const contactLine = [agencia?.domicilio, agencia?.telefono, agencia?.email].filter(Boolean).join(' | ');
+      drawTextWithShadow(contactLine, margin, y + 13);
 
-    // Nro recibo (right)
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text(`#${String(recibo.numero_recibo).padStart(6, '0')}`, pageW - margin, y + 6, { align: 'right' });
+      // CUIT / Condición fiscal
+      const fiscalLine = [
+        agencia?.cuit_cuil ? `CUIT: ${agencia.cuit_cuil}` : null,
+        agencia?.condicion_fiscal
+      ].filter(Boolean).join(' — ');
+      if (fiscalLine) drawTextWithShadow(fiscalLine, margin, y + 18);
 
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.text('RECIBO NO FISCAL', pageW - margin, y + 12, { align: 'right' });
+      // Web / página
+      if (agencia?.pagina_web) {
+        doc.setFontSize(6);
+        drawTextWithShadow(agencia.pagina_web, margin, y + 22);
+      }
 
-    // Copy label (ORIGINAL / DUPLICADO)
-    doc.setFontSize(5.5);
-    doc.text(copyLabel, pageW - margin, y + 16, { align: 'right' });
+      // Nro recibo (right)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      drawTextWithShadow(`#${String(recibo.numero_recibo).padStart(6, '0')}`, pageW - margin, y + 7, { align: 'right' });
 
-    y = offsetY + 25;
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      drawTextWithShadow('RECIBO NO FISCAL', pageW - margin, y + 13, { align: 'right' });
+
+      // Copy label
+      doc.setFontSize(5.5);
+      drawTextWithShadow(copyLabel, pageW - margin, y + 18, { align: 'right' });
+
+    } else {
+      // Sin banner → header con color sólido (comportamiento original)
+      doc.setFillColor(primary.r, primary.g, primary.b);
+      doc.rect(0, offsetY, pageW, headerH, 'F');
+
+      // Agency name
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(255, 255, 255);
+      doc.text(agencia?.nombre_comercial || agencia?.empresa_nombre || 'Traveris Pro', margin, y + 6);
+
+      // Contact
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      const contactLine = [agencia?.domicilio, agencia?.telefono, agencia?.email].filter(Boolean).join(' | ');
+      doc.text(contactLine, margin, y + 11);
+
+      // CUIT
+      const fiscalLine = [
+        agencia?.cuit_cuil ? `CUIT: ${agencia.cuit_cuil}` : null,
+        agencia?.condicion_fiscal
+      ].filter(Boolean).join(' — ');
+      if (fiscalLine) doc.text(fiscalLine, margin, y + 15);
+
+      // Nro recibo (right)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text(`#${String(recibo.numero_recibo).padStart(6, '0')}`, pageW - margin, y + 6, { align: 'right' });
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text('RECIBO NO FISCAL', pageW - margin, y + 12, { align: 'right' });
+
+      // Copy label
+      doc.setFontSize(5.5);
+      doc.text(copyLabel, pageW - margin, y + 16, { align: 'right' });
+    }
+
+    y = offsetY + headerH + 3;
 
     // ── DATOS DEL CLIENTE ──
     doc.setTextColor(60, 60, 60);
@@ -155,9 +225,20 @@ export class ReciboPdfService {
     y += 7;
 
     // ── CONCEPTO + MONTO BOX ──
+    const conceptoFull = recibo.concepto || this.generarConcepto(recibo, reserva);
+    
+    // Si el concepto tiene saltos de línea explícitos (ej. recibo múltiple) o es muy largo
+    // doc.splitTextToSize hace word-wrap y también respeta \n
+    // Lo casteamos a `any` si el typings se queja
+    const lineasConcepto: string[] = (doc as any).splitTextToSize(conceptoFull.replace(/\\n/g, '\n'), contentW - 40);
+    
+    // calculamos altura en base a cantidad de líneas
+    const minHeight = 22;
+    const boxH = Math.max(minHeight, lineasConcepto.length * 4 + 12);
+
     doc.setDrawColor(primary.r, primary.g, primary.b);
     doc.setFillColor(248, 250, 252);
-    doc.roundedRect(margin, y, contentW, 22, 2, 2, 'FD');
+    doc.roundedRect(margin, y, contentW, boxH, 2, 2, 'FD');
 
     doc.setTextColor(60, 60, 60);
     doc.setFontSize(7);
@@ -166,21 +247,26 @@ export class ReciboPdfService {
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    const concepto = recibo.concepto || this.generarConcepto(recibo, reserva);
-    doc.text(concepto, margin + 4, y + 11);
+    doc.text(lineasConcepto, margin + 4, y + 11);
 
-    // Monto
+    // Monto (si es MIXTO, avisar, si no usar el monto)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
     doc.setTextColor(primary.r, primary.g, primary.b);
-    const montoStr = this.formatMonto(recibo.monto, recibo.moneda);
-    doc.text(montoStr, pageW - margin - 4, y + 10, { align: 'right' });
+    if ((recibo.moneda as string) === 'MIXTO' || recibo.monto === 0) {
+       doc.text('VARIAS', pageW - margin - 4, y + 10, { align: 'right' });
+       doc.setFontSize(8);
+       doc.setTextColor(100, 100, 100);
+       doc.text('MONEDAS', pageW - margin - 4, y + 16, { align: 'right' });
+    } else {
+       const montoStr = this.formatMonto(recibo.monto, recibo.moneda);
+       doc.text(montoStr, pageW - margin - 4, y + 10, { align: 'right' });
+       doc.setFontSize(8);
+       doc.setTextColor(100, 100, 100);
+       doc.text(recibo.moneda, pageW - margin - 4, y + 16, { align: 'right' });
+    }
 
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text(recibo.moneda, pageW - margin - 4, y + 16, { align: 'right' });
-
-    y += 25;
+    y += boxH + 3;
 
     // ── DETALLES ──
     doc.setTextColor(60, 60, 60);
@@ -330,5 +416,24 @@ export class ReciboPdfService {
     };
 
     return `${convertir(entero)} ${monedaTexto} CON ${String(decimales).padStart(2, '0')}/100`;
+  }
+
+  private async cargarImagenBase64(url: string): Promise<string> {
+    // Si es una URL relativa (local fallback), construir URL completa
+    let fullUrl = url;
+    if (!url.startsWith('http')) {
+      const { environment } = await import('../../environments/environment');
+      fullUrl = environment.apiUrl.replace('/api', '') + '/uploads/' + url;
+    }
+
+    const response = await fetch(fullUrl);
+    const blob = await response.blob();
+
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   }
 }

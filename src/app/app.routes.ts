@@ -33,7 +33,8 @@ export const routes: Routes = [
           { path: '', loadComponent: () => import('./components/admin-dashboard/admin-dashboard').then(m => m.AdminDashboardComponent) },
           { path: 'agencias', loadComponent: () => import('./components/admin-dashboard/admin-dashboard').then(m => m.AdminDashboardComponent) },
           { path: 'agencias/:empresa', loadComponent: () => import('./components/admin-agencia-config/admin-agencia-config').then(m => m.AdminAgenciaConfigComponent) },
-          { path: 'usuarios', loadComponent: () => import('./components/admin-usuarios/admin-usuarios').then(m => m.AdminUsuariosComponent) }
+          { path: 'usuarios', loadComponent: () => import('./components/admin-usuarios/admin-usuarios').then(m => m.AdminUsuariosComponent) },
+          { path: 'archivos-agencias', loadComponent: () => import('./components/admin-archivos-agencias/admin-archivos-agencias').then(m => m.AdminArchivosAgenciasComponent) }
         ]
       },
 

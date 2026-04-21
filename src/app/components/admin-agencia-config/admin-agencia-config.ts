@@ -175,8 +175,20 @@ export class AdminAgenciaConfigComponent implements OnInit {
 
   guardarAgencia(): void {
     if (!this.agencia) return;
-    this.api.updateAgenciaConfig(this.empresaNombre, this.agencia).subscribe({
-      next: () => this.confirmSvc.toast('Agencia actualizada correctamente')
+    const payload: any = {
+      nombre_comercial: this.agencia.nombre_comercial,
+      titular: this.agencia.titular,
+      cuit_cuil: this.agencia.cuit_cuil,
+      condicion_fiscal: this.agencia.condicion_fiscal,
+      domicilio: this.agencia.domicilio,
+      telefono: this.agencia.telefono,
+      email: this.agencia.email,
+      pagina_web: this.agencia.pagina_web,
+      recibo_footer_legal: this.agencia.recibo_footer_legal
+    };
+    this.api.updateAgenciaConfig(this.empresaNombre, payload).subscribe({
+      next: () => this.confirmSvc.toast('Agencia actualizada correctamente'),
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al guardar', 'error')
     });
   }
 
@@ -184,13 +196,18 @@ export class AdminAgenciaConfigComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
     this.api.uploadLogoAgencia(this.empresaNombre, input.files[0]).subscribe({
-      next: (res) => { if (this.agencia) this.agencia.logo_url = res.logo_url; }
+      next: (res) => {
+        if (this.agencia) this.agencia.logo_url = res.logo_url;
+        this.confirmSvc.toast('Logo subido correctamente');
+      },
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al subir logo', 'error')
     });
   }
 
   guardarReciboConfig(): void {
     this.api.updateReciboConfig(this.empresaNombre, this.reciboConfig).subscribe({
-      next: () => this.confirmSvc.toast('Configuración de recibo actualizada')
+      next: () => this.confirmSvc.toast('Configuración de recibo actualizada'),
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al guardar config del recibo', 'error')
     });
   }
 }

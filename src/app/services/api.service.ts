@@ -48,6 +48,12 @@ export class ApiService {
     return this.http.post<{ logo_url: string }>(`${this.api}/admin/agencias/${encodeURIComponent(empresa)}/logo`, fd);
   }
 
+  uploadBannerAgencia(empresa: string, file: File): Observable<{ banner_url: string }> {
+    const fd = new FormData();
+    fd.append('banner', file);
+    return this.http.post<{ banner_url: string }>(`${this.api}/admin/agencias/${encodeURIComponent(empresa)}/banner`, fd);
+  }
+
   updateReciboConfig(empresa: string, config: Partial<ReciboConfig>): Observable<{ recibo_config: ReciboConfig }> {
     return this.http.put<{ recibo_config: ReciboConfig }>(
       `${this.api}/admin/agencias/${encodeURIComponent(empresa)}/recibo-config`, config
@@ -220,6 +226,10 @@ export class ApiService {
 
   registrarPago(data: PagoRequest): Observable<Pago> {
     return this.http.post<Pago>(`${this.api}/pagos`, data);
+  }
+
+  registrarPagosMultiples(data: PagoRequest[]): Observable<{ mensaje: string, id_pago: number }> {
+    return this.http.post<{ mensaje: string, id_pago: number }>(`${this.api}/pagos/multiples`, data);
   }
 
   convertirMoneda(data: ConversionRequest): Observable<{ egreso: Pago; ingreso: Pago }> {

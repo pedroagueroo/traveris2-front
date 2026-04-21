@@ -17,6 +17,7 @@ import { AgenciaConfig } from '../../models';
         </div>
         <div class="d-flex gap-2">
           <a routerLink="/admin/usuarios" class="btn-elite-outline"><span>👤 Usuarios</span></a>
+          <a routerLink="/admin/archivos-agencias" class="btn-elite-outline"><span>📁 Archivos de Agencias</span></a>
           <button class="btn-elite" (click)="mostrarNueva = true"><span>➕ Nueva Agencia</span></button>
         </div>
       </div>

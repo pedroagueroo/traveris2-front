@@ -506,7 +506,7 @@ interface ServicioForm {
                       <span class="svc-value">{{ s.fecha_sena ? formatDate(s.fecha_sena) : '-' }}</span>
                     </div>
                     <div class="svc-field">
-                      <span class="svc-label">📅 Fecha Saldar</span>
+                      <span class="svc-label">📅 Fecha a Saldar</span>
                       <span class="svc-value">{{ s.fecha_saldar ? formatDate(s.fecha_saldar) : '-' }}</span>
                     </div>
                   }

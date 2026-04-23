@@ -24,7 +24,7 @@ export const routes: Routes = [
       { path: 'reservas/:id', loadComponent: () => import('./components/reserva-detalle/reserva-detalle').then(m => m.ReservaDetalleComponent) },
       { path: 'caja', loadComponent: () => import('./components/caja/caja').then(m => m.CajaComponent) },
       { path: 'estadisticas', loadComponent: () => import('./components/estadisticas/estadisticas').then(m => m.EstadisticasComponent) },
-
+      { path: 'tarjetas-guardadas', loadComponent: () => import('./components/tarjetas-guardadas/tarjetas-guardadas').then(m => m.TarjetasGuardadasComponent) },
       // Admin
       {
         path: 'admin',

@@ -19,6 +19,9 @@ export class DniMaskDirective {
 
   @HostListener('input')
   onInput(): void {
+    const raw = this.el.nativeElement.value;
+    if (/[a-zA-Z]/.test(raw)) return; // es pasaporte, no formatear
+
     if (this.formatting) return;
     this.formatting = true;
 

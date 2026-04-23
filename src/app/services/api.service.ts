@@ -330,6 +330,58 @@ export class ApiService {
       `${this.api}/import-clientes/confirmar`, { clientes }
     );
   }
+
+  // Incidencias
+  getIncidenciasReserva(idReserva: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.api}/incidencias/reserva/${idReserva}`);
+  }
+
+  crearIncidencia(data: { id_reserva: number; descripcion: string; estado_gestion: string }): Observable<any> {
+    return this.http.post<any>(`${this.api}/incidencias`, data);
+  }
+
+  updateIncidencia(id: number, data: { descripcion?: string; estado_gestion?: string }): Observable<any> {
+    return this.http.put<any>(`${this.api}/incidencias/${id}`, data);
+  }
+
+  deleteIncidencia(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.api}/incidencias/${id}`);
+  }
+
+  // Aeropuertos
+  buscarAeropuertos(q: string): Observable<{ codigo_iata: string; nombre_ciudad: string; pais: string }[]> {
+    return this.http.get<any[]>(`${this.api}/aeropuertos?q=${encodeURIComponent(q)}`);
+  }
+
+  // Items / Vouchers
+  getItemsReserva(idReserva: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.api}/items/reserva/${idReserva}`);
+  }
+
+  crearItem(data: any): Observable<any> {
+    return this.http.post<any>(`${this.api}/items`, data);
+  }
+
+  updateItem(id: number, data: any): Observable<any> {
+    return this.http.put<any>(`${this.api}/items/${id}`, data);
+  }
+
+  deleteItem(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.api}/items/${id}`);
+  }
+
+  // Tarjetas Guardadas (Vault)
+  getTarjetasGuardadas(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.api}/tarjetas-guardadas`);
+  }
+
+  crearTarjetaGuardada(data: { alias: string; nro_tarjeta_completo: string; banco: string; vencimiento: string }): Observable<any> {
+    return this.http.post<any>(`${this.api}/tarjetas-guardadas`, data);
+  }
+
+  deleteTarjetaGuardada(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.api}/tarjetas-guardadas/${id}`);
+  }
 }
 
 // Re-export for convenience

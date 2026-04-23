@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { CierreMensual, Moneda } from '../../models';
+import { ExportService } from '../../services/export.service';
 
 @Component({
   selector: 'app-estadisticas',
@@ -26,6 +27,7 @@ import { CierreMensual, Moneda } from '../../models';
               <option [value]="a">{{ a }}</option>
             }
           </select>
+          <button class="btn-elite-outline" (click)="exportar()"><span>📥 Exportar Excel</span></button>
         </div>
       </div>
 
@@ -121,12 +123,18 @@ export class EstadisticasComponent implements OnInit {
 
   anios = [2024, 2025, 2026, 2027];
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private exportSvc: ExportService) {}
 
   ngOnInit(): void { this.cargar(); }
 
   cargar(): void {
     this.api.getCierreMensual(this.mes, this.anio).subscribe({ next: (c) => this.cierre = c });
+  }
+
+  exportar(): void {
+    if (this.cierre) {
+      this.exportSvc.exportarCierreMensual(this.cierre, this.mes, this.anio);
+    }
   }
 
   formatMoney(valor: number, moneda: Moneda): string {

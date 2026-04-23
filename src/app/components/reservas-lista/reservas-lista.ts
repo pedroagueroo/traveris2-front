@@ -37,9 +37,12 @@ import { Reserva, PaginatedResponse } from '../../models';
         </div>
       </div>
 
-      <div class="glass-card-solid" style="padding: 0; overflow: hidden;">
+      <!-- Desktop -->
+      <div class="glass-card-solid d-none d-md-block" style="padding: 0; overflow: hidden;">
         <table class="table-premium">
-          <thead><tr><th>#</th><th>Titular</th><th>Destino</th><th>Salida</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead>
+            <tr><th>#</th><th>Titular</th><th>Destino</th><th>Salida</th><th>Estado</th><th>Acciones</th></tr>
+          </thead>
           <tbody>
             @for (r of reservas; track r.id) {
               <tr>
@@ -60,6 +63,36 @@ import { Reserva, PaginatedResponse } from '../../models';
             }
           </tbody>
         </table>
+      </div>
+
+      <!-- Mobile -->
+      <div class="d-md-none">
+        @for (r of reservas; track r.id) {
+          <div class="glass-card-solid mb-2">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <div style="font-weight: 700; font-size: 0.95rem;">{{ r.titular_nombre }}</div>
+                <div style="font-size: 0.78rem; color: var(--text-muted);">
+                  {{ r.destino_final || 'Sin destino' }} · #{{ r.id }}
+                </div>
+              </div>
+              <span class="status-pill" [ngClass]="r.estado.toLowerCase()">{{ r.estado }}</span>
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+              Salida: {{ r.fecha_viaje_salida ? (r.fecha_viaje_salida | date:'dd/MM/yyyy':'UTC') : '-' }}
+            </div>
+            <div class="d-flex gap-2">
+              <a [routerLink]="['/reservas', r.id]" class="btn-elite" style="flex: 1; text-align: center; font-size: 0.82rem; padding: 0.5rem;">
+                <span>Ver reserva</span>
+              </a>
+              <button class="btn-elite-outline" style="color: #ef4444; border-color: #ef4444; padding: 0.5rem 0.75rem;" (click)="eliminar(r)">🗑️</button>
+            </div>
+          </div>
+        } @empty {
+          <div class="glass-card-solid" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            No se encontraron reservas
+          </div>
+        }
       </div>
 
       @if (totalPages > 1) {
@@ -113,7 +146,8 @@ export class ReservasListaComponent implements OnInit {
       title: 'Eliminar TODAS las Reservas',
       message: '¿Estás seguro de eliminar TODAS las reservas? Esta acción no se puede deshacer.',
       confirmText: 'Sí, eliminar todas',
-      type: 'danger'
+      type: 'danger',
+      requireText: 'ELIMINAR TODO'
     });
     if (!ok) return;
     this.api.deleteAllReservas().subscribe({

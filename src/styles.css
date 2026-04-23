@@ -577,19 +577,58 @@ a:hover {
 }
 
 @media (max-width: 576px) {
+
+  /* Sidebar oculto por defecto fuera de pantalla */
   .sidebar {
-    width: 0;
+    width: 260px;
     transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 1000;
   }
 
+  /* Sidebar visible cuando tiene la clase mobile-open */
   .sidebar.mobile-open {
-    width: 260px;
     transform: translateX(0);
   }
 
+  /* El main nunca tiene margin en mobile — ocupa todo el ancho */
   .main-content {
-    margin-left: 0;
+    margin-left: 0 !important;
     padding: 0.75rem;
+    padding-top: 3.5rem; /* espacio para el botón hamburguesa */
+  }
+
+  /* Overlay oscuro detrás del sidebar cuando está abierto */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 999;
+    backdrop-filter: blur(2px);
+  }
+
+  /* Botón hamburguesa fijo arriba a la izquierda */
+  .mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 1100;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.45rem 0.65rem;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   }
 }
 
@@ -667,4 +706,72 @@ a:hover {
   letter-spacing: 0.06em;
   color: var(--text-muted);
   margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+
+  .main-content {
+    padding: 0.75rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .page-header .d-flex {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .page-header .btn-elite,
+  .page-header .btn-elite-outline {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+    min-width: 120px;
+  }
+
+  .nav-tabs-premium {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    max-width: 100%;
+  }
+
+  .nav-tabs-premium::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-tabs-premium .nav-link {
+    white-space: nowrap;
+  }
+
+  .stat-card .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .money-wallet .amount {
+    font-size: 1.4rem;
+  }
+
+  .glass-card-solid {
+    padding: 1rem;
+  }
+
+  .row.g-3 > [class*="col-"] {
+    margin-bottom: 0.1rem;
+  }
+
+  .table-premium thead th {
+    font-size: 0.7rem;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .table-premium tbody td {
+    font-size: 0.8rem;
+    padding: 0.6rem 0.75rem;
+  }
 }

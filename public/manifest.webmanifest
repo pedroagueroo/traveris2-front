@@ -1,0 +1,20 @@
+{
+  "name": "Traveris Pro",
+  "short_name": "Traveris",
+  "description": "Sistema integral de gestión para agencias de viajes",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F172A",
+  "theme_color": "#6366F1",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "es-AR"
+}

@@ -30,7 +30,8 @@ import { Cliente, PaginatedResponse } from '../../models';
         <input type="text" class="form-control-elite w-100" placeholder="🔍 Buscar por nombre, DNI o email..." [(ngModel)]="busqueda" (input)="buscar()" />
       </div>
 
-      <div class="glass-card-solid" style="padding: 0; overflow: hidden;">
+      <!-- Desktop -->
+      <div class="glass-card-solid d-none d-md-block" style="padding: 0; overflow: hidden;">
         <table class="table-premium">
           <thead>
             <tr><th>Apellido</th><th>Nombre</th><th>DNI / Pasaporte</th><th>Email</th><th>Teléfono</th><th>Acciones</th></tr>
@@ -56,6 +57,34 @@ import { Cliente, PaginatedResponse } from '../../models';
             }
           </tbody>
         </table>
+      </div>
+
+      <!-- Mobile -->
+      <div class="d-md-none">
+        @for (c of clientes; track c.id) {
+          <div class="glass-card-solid mb-2">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+              <div>
+                <div style="font-weight: 700; font-size: 0.95rem;">{{ c.apellido }} {{ c.nombre }}</div>
+                <div style="font-size: 0.78rem; color: var(--text-muted);">{{ c.dni_pasaporte || 'Sin DNI' }}</div>
+              </div>
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+              {{ c.email || '-' }} · {{ c.telefono || '-' }}
+            </div>
+            <div class="d-flex gap-2">
+              <a [routerLink]="['/clientes/detalle', c.id]" class="btn-elite" style="flex: 1; text-align: center; font-size: 0.82rem; padding: 0.5rem;">
+                <span>Ver</span>
+              </a>
+              <a [routerLink]="['/clientes/editar', c.id]" class="btn-elite-outline" style="padding: 0.5rem 0.75rem; font-size: 0.82rem;">✏️</a>
+              <button class="btn-elite-outline" style="color: #ef4444; border-color: #ef4444; padding: 0.5rem 0.75rem;" (click)="eliminar(c)">🗑️</button>
+            </div>
+          </div>
+        } @empty {
+          <div class="glass-card-solid" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            No se encontraron clientes
+          </div>
+        }
       </div>
 
       @if (totalPages > 1) {
@@ -114,7 +143,8 @@ export class ClientesListaComponent implements OnInit {
       title: 'Eliminar TODOS los Clientes',
       message: '¿Estás seguro de eliminar TODOS los clientes? Esta acción no se puede deshacer.',
       confirmText: 'Sí, eliminar todos',
-      type: 'danger'
+      type: 'danger',
+      requireText: 'ELIMINAR TODO'
     });
     if (!ok) return;
     this.api.deleteAllClientes().subscribe({

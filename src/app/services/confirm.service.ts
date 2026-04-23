@@ -7,6 +7,7 @@ export interface ConfirmDialog {
   confirmText?: string;
   cancelText?: string;
   type?: 'danger' | 'warning' | 'info';
+  requireText?: string;
 }
 
 @Injectable({ providedIn: 'root' })

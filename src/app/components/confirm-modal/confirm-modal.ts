@@ -1,12 +1,13 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { ConfirmService, ConfirmDialog } from '../../services/confirm.service';
 
 @Component({
   selector: 'app-confirm-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <!-- CONFIRM MODAL -->
     @if (visible) {
@@ -19,9 +20,25 @@ import { ConfirmService, ConfirmDialog } from '../../services/confirm.service';
           </div>
           <h3 class="confirm-title">{{ dialog.title }}</h3>
           <p class="confirm-message">{{ dialog.message }}</p>
+          @if (dialog.requireText) {
+            <div style="margin-bottom: 1rem;">
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                Escribí <strong style="color: var(--danger);">{{ dialog.requireText }}</strong> para confirmar
+              </p>
+              <input
+                class="form-control-elite w-100"
+                [(ngModel)]="textoConfirmacion"
+                [placeholder]="dialog.requireText"
+                style="text-align: center;"
+              />
+            </div>
+          }
           <div class="confirm-actions">
             <button class="confirm-btn cancel" (click)="cancel()">{{ dialog.cancelText || 'Cancelar' }}</button>
-            <button class="confirm-btn" [ngClass]="dialog.type === 'danger' ? 'danger' : 'primary'" (click)="accept()">{{ dialog.confirmText || 'Confirmar' }}</button>
+            <button class="confirm-btn" [ngClass]="dialog.type === 'danger' ? 'danger' : 'primary'" (click)="accept()"
+              [disabled]="dialog.requireText && textoConfirmacion !== dialog.requireText">
+              {{ dialog.confirmText || 'Confirmar' }}
+            </button>
           </div>
         </div>
       </div>
@@ -168,6 +185,7 @@ import { ConfirmService, ConfirmDialog } from '../../services/confirm.service';
 })
 export class ConfirmModalComponent implements OnInit, OnDestroy {
   visible = false;
+  textoConfirmacion = '';
   dialog: ConfirmDialog = { title: '', message: '' };
   toasts: { id: number; message: string; type: string; exiting: boolean }[] = [];
 
@@ -202,12 +220,14 @@ export class ConfirmModalComponent implements OnInit, OnDestroy {
 
   accept(): void {
     this.visible = false;
+    this.textoConfirmacion = '';
     this.resolve?.(true);
     this.resolve = null;
   }
 
   cancel(): void {
     this.visible = false;
+    this.textoConfirmacion = '';
     this.resolve?.(false);
     this.resolve = null;
   }

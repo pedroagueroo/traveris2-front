@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
 import { ConfirmService } from '../../services/confirm.service';
 import { BalanceCaja, DetalleCaja, Pago, Moneda, MetodoPago, ReporteDiario, Cotizacion } from '../../models';
+import { ExportService } from '../../services/export.service';
 
 type CajaTab = 'balance' | 'diario' | 'conversion';
 
@@ -111,6 +112,36 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
               </div>
             </div>
           </div>
+
+          <!-- Últimos movimientos del día — debajo del formulario -->
+          <div class="glass-card-solid mt-3" style="padding: 0; overflow-x: auto;">
+            <div style="padding: 1rem 1rem 0.5rem; font-size: 0.85rem; font-weight: 700;">
+              Movimientos de hoy
+            </div>
+            <table class="table-premium">
+              <thead>
+                <tr><th>Hora</th><th>Tipo</th><th>Moneda</th><th>Monto</th><th>Método</th><th></th></tr>
+              </thead>
+              <tbody>
+                @for (m of movimientosHoy; track m.id) {
+                  <tr [class.anulado]="m.anulado">
+                    <td>{{ formatHora(m.fecha) }}</td>
+                    <td><span class="status-pill" [ngClass]="m.tipo === 'COBRO_CLIENTE' || m.tipo === 'INGRESO_GENERAL' ? 'activa' : 'consumida'">{{ m.tipo }}</span></td>
+                    <td>{{ m.moneda }}</td>
+                    <td class="fw-bold" [ngClass]="'money-' + m.moneda.toLowerCase()">{{ m.monto | number:'1.2-2' }}</td>
+                    <td>{{ m.metodo_nombre || '-' }}</td>
+                    <td>
+                      @if (!m.anulado) {
+                        <button class="btn-danger-elite" style="padding: 0.2rem 0.5rem; font-size: 0.65rem;" (click)="eliminarMovimiento(m.id)">🗑️</button>
+                      }
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="6" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">Sin movimientos hoy</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
         </div>
       }
 
@@ -119,6 +150,9 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
         <div class="animate-fadeInUp">
           <div class="d-flex gap-2 mb-3 align-items-center">
             <input type="date" class="form-control-elite" [(ngModel)]="fechaDiario" (change)="cargarDiario()" style="width: 200px;" />
+            <button class="btn-elite-outline" (click)="exportarDiario()">
+              <span>📥 Excel</span>
+            </button>
             @for (t of reporteDiario?.totales || []; track t.moneda) {
               <div class="stat-card" style="padding: 0.5rem 1rem;">
                 <span style="font-size: 0.7rem; color: var(--text-muted);">{{ t.moneda }}</span>
@@ -199,6 +233,7 @@ type CajaTab = 'balance' | 'diario' | 'conversion';
     .section-title { font-weight: 700; font-size: 1rem; margin-bottom: 1rem; }
     .detalle-overlay {
       margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color);
+      max-height: 200px; overflow-y: auto;
     }
     .detalle-row {
       display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.8rem;
@@ -214,17 +249,25 @@ export class CajaComponent implements OnInit {
   metodos: MetodoPago[] = [];
   reporteDiario: ReporteDiario | null = null;
   fechaDiario = new Date().toISOString().split('T')[0];
+  movimientosHoy: Pago[] = [];
   tab: CajaTab = 'balance';
 
   movForm = { tipo: 'INGRESO_GENERAL', moneda: 'ARS' as Moneda, monto: 0, metodo_pago_id: null as number | null, observaciones: '' };
   convForm = { moneda_origen: 'USD' as Moneda, moneda_destino: 'ARS' as Moneda, monto_origen: 0, monto_destino: 0, observaciones: '' };
 
-  constructor(private api: ApiService, private confirmSvc: ConfirmService) {}
+  constructor(private api: ApiService, private confirmSvc: ConfirmService, private exportSvc: ExportService) {}
+
+  exportarDiario(): void {
+    if (this.reporteDiario) {
+      this.exportSvc.exportarReporteDiario(this.reporteDiario, this.fechaDiario);
+    }
+  }
 
   ngOnInit(): void {
     this.cargarBalances();
     this.cargarMetodos();
     this.api.getCotizaciones().subscribe({ next: (c) => this.cotizaciones = c.slice(0, 4) });
+    this.cargarMovimientosHoy();
   }
 
   cargarBalances(): void {
@@ -254,12 +297,20 @@ export class CajaComponent implements OnInit {
       next: () => {
         this.movForm = { tipo: 'INGRESO_GENERAL', moneda: 'ARS', monto: 0, metodo_pago_id: null, observaciones: '' };
         this.cargarBalances();
+        this.cargarMovimientosHoy();
       }
     });
   }
 
   cargarDiario(): void {
     this.api.getReporteDiario(this.fechaDiario).subscribe({ next: (r) => this.reporteDiario = r });
+  }
+
+  cargarMovimientosHoy(): void {
+    const hoy = new Date().toISOString().split('T')[0];
+    this.api.getReporteDiario(hoy).subscribe({
+      next: (r) => this.movimientosHoy = r.movimientos
+    });
   }
 
   async eliminarMovimiento(id: number): Promise<void> {
@@ -275,6 +326,7 @@ export class CajaComponent implements OnInit {
         this.confirmSvc.toast('Movimiento eliminado');
         this.cargarDiario();
         this.cargarBalances();
+        this.cargarMovimientosHoy();
       },
       error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al eliminar', 'error')
     });

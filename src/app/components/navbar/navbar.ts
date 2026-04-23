@@ -2,63 +2,69 @@ import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ThemeService } from '../../services/theme.service';
+import { SidebarService } from '../../services/sidebar.service';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
   imports: [RouterLink, RouterLinkActive],
   template: `
-    <nav class="sidebar" [class.collapsed]="collapsed" [class.mobile-open]="mobileOpen">
+    <nav class="sidebar" [class.collapsed]="sidebar.collapsed()" [class.mobile-open]="mobileOpen">
       <!-- Logo -->
       <div class="sidebar-header">
         <div class="sidebar-logo">
           <span class="logo-emoji">✈️</span>
-          @if (!collapsed) {
+          @if (!sidebar.collapsed()) {
             <span class="logo-text">Traveris Pro</span>
           }
         </div>
         <button class="collapse-btn" (click)="toggleCollapse()">
-          {{ collapsed ? '▶' : '◀' }}
+          {{ sidebar.collapsed() ? '▶' : '◀' }}
         </button>
       </div>
 
       <!-- Navigation -->
       <div class="sidebar-nav">
-        <a routerLink="/dashboard" routerLinkActive="active" class="sidebar-nav-item">
+        <a routerLink="/dashboard" routerLinkActive="active" class="sidebar-nav-item" (click)="mobileOpen = false">
           <span class="nav-icon">📊</span>
-          @if (!collapsed) { <span class="nav-text">Dashboard</span> }
+          @if (!sidebar.collapsed()) { <span class="nav-text">Dashboard</span> }
         </a>
 
-        <a routerLink="/clientes" routerLinkActive="active" class="sidebar-nav-item">
+        <a routerLink="/clientes" routerLinkActive="active" class="sidebar-nav-item" (click)="mobileOpen = false">
           <span class="nav-icon">👥</span>
-          @if (!collapsed) { <span class="nav-text">Clientes</span> }
+          @if (!sidebar.collapsed()) { <span class="nav-text">Clientes</span> }
         </a>
 
-        <a routerLink="/proveedores" routerLinkActive="active" class="sidebar-nav-item">
+        <a routerLink="/proveedores" routerLinkActive="active" class="sidebar-nav-item" (click)="mobileOpen = false">
           <span class="nav-icon">🏢</span>
-          @if (!collapsed) { <span class="nav-text">Proveedores</span> }
+          @if (!sidebar.collapsed()) { <span class="nav-text">Proveedores</span> }
         </a>
 
-        <a routerLink="/reservas" routerLinkActive="active" class="sidebar-nav-item">
+        <a routerLink="/reservas" routerLinkActive="active" class="sidebar-nav-item" (click)="mobileOpen = false">
           <span class="nav-icon">📋</span>
-          @if (!collapsed) { <span class="nav-text">Reservas</span> }
+          @if (!sidebar.collapsed()) { <span class="nav-text">Reservas</span> }
         </a>
 
-        <a routerLink="/caja" routerLinkActive="active" class="sidebar-nav-item">
+        <a routerLink="/caja" routerLinkActive="active" class="sidebar-nav-item" (click)="mobileOpen = false">
           <span class="nav-icon">💰</span>
-          @if (!collapsed) { <span class="nav-text">Caja</span> }
+          @if (!sidebar.collapsed()) { <span class="nav-text">Caja</span> }
         </a>
 
-        <a routerLink="/estadisticas" routerLinkActive="active" class="sidebar-nav-item">
+        <a routerLink="/tarjetas-guardadas" routerLinkActive="active" class="sidebar-nav-item" (click)="mobileOpen = false">
+          <span class="nav-icon">💳</span>
+          @if (!sidebar.collapsed()) { <span class="nav-text">Tarjetas</span> }
+        </a>
+
+        <a routerLink="/estadisticas" routerLinkActive="active" class="sidebar-nav-item" (click)="mobileOpen = false">
           <span class="nav-icon">📈</span>
-          @if (!collapsed) { <span class="nav-text">Estadísticas</span> }
+          @if (!sidebar.collapsed()) { <span class="nav-text">Estadísticas</span> }
         </a>
 
         @if (auth.esAdmin()) {
           <div class="sidebar-separator"></div>
-          <a routerLink="/admin" routerLinkActive="active" class="sidebar-nav-item admin-item">
+          <a routerLink="/admin" routerLinkActive="active" class="sidebar-nav-item admin-item" (click)="mobileOpen = false">
             <span class="nav-icon">⚙️</span>
-            @if (!collapsed) { <span class="nav-text">Admin Panel</span> }
+            @if (!sidebar.collapsed()) { <span class="nav-text">Admin Panel</span> }
           </a>
         }
       </div>
@@ -67,12 +73,12 @@ import { ThemeService } from '../../services/theme.service';
       <div class="sidebar-footer">
         <button class="sidebar-nav-item" (click)="theme.toggle()">
           <span class="nav-icon">{{ theme.isDark() ? '☀️' : '🌙' }}</span>
-          @if (!collapsed) { <span class="nav-text">{{ theme.isDark() ? 'Claro' : 'Oscuro' }}</span> }
+          @if (!sidebar.collapsed()) { <span class="nav-text">{{ theme.isDark() ? 'Claro' : 'Oscuro' }}</span> }
         </button>
 
         <div class="sidebar-nav-item user-info" style="cursor: default;">
           <span class="nav-icon">👤</span>
-          @if (!collapsed) {
+          @if (!sidebar.collapsed()) {
             <div class="user-details">
               <span class="user-name">{{ auth.usuario()?.nombre_usuario }}</span>
               <span class="user-role">{{ auth.usuario()?.rol }}</span>
@@ -82,18 +88,20 @@ import { ThemeService } from '../../services/theme.service';
 
         <button class="sidebar-nav-item logout-btn" (click)="auth.logout()">
           <span class="nav-icon">🚪</span>
-          @if (!collapsed) { <span class="nav-text">Cerrar Sesión</span> }
+          @if (!sidebar.collapsed()) { <span class="nav-text">Cerrar Sesión</span> }
         </button>
       </div>
     </nav>
 
-    <!-- Mobile overlay -->
+    <!-- Overlay — toca afuera para cerrar -->
     @if (mobileOpen) {
       <div class="sidebar-overlay" (click)="mobileOpen = false"></div>
     }
 
-    <!-- Mobile hamburger -->
-    <button class="mobile-menu-btn" (click)="mobileOpen = !mobileOpen">☰</button>
+    <!-- Botón hamburguesa — siempre visible en mobile, fuera del sidebar -->
+    <button class="mobile-menu-btn" (click)="mobileOpen = !mobileOpen">
+      @if (mobileOpen) { ✕ } @else { ☰ }
+    </button>
   `,
   styles: [`
     .sidebar-header {
@@ -211,12 +219,11 @@ import { ThemeService } from '../../services/theme.service';
   `]
 })
 export class NavbarComponent {
-  collapsed = false;
   mobileOpen = false;
 
-  constructor(public auth: AuthService, public theme: ThemeService) {}
+  constructor(public auth: AuthService, public theme: ThemeService, public sidebar: SidebarService) {}
 
   toggleCollapse(): void {
-    this.collapsed = !this.collapsed;
+    this.sidebar.toggle();
   }
 }

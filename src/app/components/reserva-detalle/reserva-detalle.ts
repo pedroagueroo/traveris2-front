@@ -11,7 +11,7 @@ import {
   TarjetaCliente, Recibo, Moneda, TipoServicio
 } from '../../models';
 
-type Tab = 'info' | 'servicios' | 'deudas' | 'pagos' | 'archivos' | 'recibos' | 'tarjetas';
+type Tab = 'info' | 'servicios' | 'deudas' | 'pagos' | 'archivos' | 'recibos' | 'tarjetas' | 'incidencias' | 'vouchers';
 
 interface ServicioForm {
   tipo_servicio: string;
@@ -119,7 +119,7 @@ interface ServicioForm {
               </div>
             </div>
             <div class="col-lg-4">
-              <div class="glass-card-solid mb-3">
+              <div class="glass-card-solid mb-3" style="max-height: 300px; overflow-y: auto;">
                 <h5 class="section-title">👥 Pasajeros ({{ reserva.pasajeros?.length || 0 }})</h5>
                 @for (p of reserva.pasajeros; track p.id) {
                   <div class="pasajero-item">
@@ -285,8 +285,40 @@ interface ServicioForm {
                   <div class="row g-2">
                     <div class="col-md-3"><label class="form-label-elite">Aerolínea</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_aerolinea" /></div>
                     <div class="col-md-2"><label class="form-label-elite">Nro Vuelo</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_nro" /></div>
-                    <div class="col-md-2"><label class="form-label-elite">Origen</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_origen" /></div>
-                    <div class="col-md-2"><label class="form-label-elite">Destino</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_destino" /></div>
+                    <div class="col-md-2" style="position: relative;">
+                      <label class="form-label-elite">Origen</label>
+                      <input class="form-control-elite w-100"
+                        [ngModel]="svcForm.vuelo_origen"
+                        (ngModelChange)="svcForm.vuelo_origen = $event; buscarOrigen($event)"
+                        placeholder="EZE, GRU..." />
+                      @if (aeropuertosOrigen.length) {
+                        <div class="iata-dropdown">
+                          @for (a of aeropuertosOrigen; track a.codigo_iata) {
+                            <div class="iata-item" (mousedown)="seleccionarOrigen(a)">
+                              <span class="iata-code">{{ a.codigo_iata }}</span>
+                              <span class="iata-city">{{ a.nombre_ciudad }}, {{ a.pais }}</span>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                    <div class="col-md-2" style="position: relative;">
+                      <label class="form-label-elite">Destino</label>
+                      <input class="form-control-elite w-100"
+                        [ngModel]="svcForm.vuelo_destino"
+                        (ngModelChange)="svcForm.vuelo_destino = $event; buscarDestino($event)"
+                        placeholder="MIA, MAD..." />
+                      @if (aeropuertosDest.length) {
+                        <div class="iata-dropdown">
+                          @for (a of aeropuertosDest; track a.codigo_iata) {
+                            <div class="iata-item" (mousedown)="seleccionarDestino(a)">
+                              <span class="iata-code">{{ a.codigo_iata }}</span>
+                              <span class="iata-city">{{ a.nombre_ciudad }}, {{ a.pais }}</span>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
                     <div class="col-md-3"><label class="form-label-elite">PNR / Código</label><input class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_codigo_reserva" /></div>
                     <div class="col-md-3"><label class="form-label-elite">Fecha Salida</label><input type="datetime-local" class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_fecha_salida" /></div>
                     <div class="col-md-3"><label class="form-label-elite">Fecha Llegada</label><input type="datetime-local" class="form-control-elite w-100" [(ngModel)]="svcForm.vuelo_fecha_llegada" /></div>
@@ -881,8 +913,9 @@ interface ServicioForm {
             }
 
             <!-- Lista pagos -->
-            <div class="glass-card-solid" style="padding: 0; overflow-x: auto;">
-              <table class="table-premium">
+            <div class="glass-card-solid" style="padding: 0;">
+              <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <table class="table-premium" style="min-width: 580px;">
                 <thead><tr><th>Fecha</th><th>Tipo</th><th>Moneda</th><th>Monto</th><th>Método</th><th>Estado</th><th></th></tr></thead>
                 <tbody>
                   @for (p of pagos; track p.id) {
@@ -911,7 +944,8 @@ interface ServicioForm {
                     <tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">Sin pagos</td></tr>
                   }
                 </tbody>
-              </table>
+                </table>
+              </div>
             </div>
           </div>
         }
@@ -1006,10 +1040,225 @@ interface ServicioForm {
             }
           </div>
         }
+
+        @if (tabActiva === 'incidencias') {
+          <div class="animate-fadeInUp">
+            <div class="d-flex justify-content-between mb-3 align-items-center">
+              <h5 class="section-title mb-0">⚠️ Incidencias ({{ incidencias.length }})</h5>
+              <button class="btn-elite" (click)="mostrarFormIncidencia = !mostrarFormIncidencia">
+                <span>➕ Nueva Incidencia</span>
+              </button>
+            </div>
+
+            @if (mostrarFormIncidencia) {
+              <div class="glass-card-solid mb-3">
+                <div class="row g-3">
+                  <div class="col-md-8">
+                    <label class="form-label-elite">Descripción *</label>
+                    <textarea class="form-control-elite w-100" [(ngModel)]="incidenciaForm.descripcion"
+                      rows="2" placeholder="Ej: Vuelo cancelado, cliente notificado..."></textarea>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label-elite">Estado</label>
+                    <select class="form-select-elite w-100" [(ngModel)]="incidenciaForm.estado_gestion">
+                      <option value="PENDIENTE">Pendiente</option>
+                      <option value="EN_GESTION">En gestión</option>
+                      <option value="RESUELTO">Resuelto</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                  <button class="btn-elite" (click)="guardarIncidencia()"><span>Guardar</span></button>
+                  <button class="btn-elite-outline" (click)="mostrarFormIncidencia = false">Cancelar</button>
+                </div>
+              </div>
+            }
+
+            @for (inc of incidencias; track inc.id) {
+              <div class="glass-card-solid mb-2" style="padding: 1rem;">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div style="flex: 1;">
+                    <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">
+                      {{ inc.descripcion }}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                      {{ inc.fecha_incidencia | date:'dd/MM/yyyy HH:mm':'UTC' }}
+                    </div>
+                  </div>
+                  <div class="d-flex gap-2 align-items-center">
+                    <span class="status-pill"
+                      [ngClass]="{
+                        'consumida': inc.estado_gestion === 'PENDIENTE',
+                        'abierto':   inc.estado_gestion === 'EN_GESTION',
+                        'activa':    inc.estado_gestion === 'RESUELTO'
+                      }">
+                      {{ inc.estado_gestion }}
+                    </span>
+                    <button class="btn-danger-elite"
+                      style="padding: 0.2rem 0.5rem; font-size: 0.7rem;"
+                      (click)="eliminarIncidencia(inc.id)">🗑️</button>
+                  </div>
+                </div>
+              </div>
+            } @empty {
+              <div class="glass-card-solid" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                Sin incidencias registradas
+              </div>
+            }
+          </div>
+        }
+
+        @if (tabActiva === 'vouchers') {
+          <div class="animate-fadeInUp">
+            <div class="d-flex justify-content-between mb-3 align-items-center">
+              <h5 class="section-title mb-0">🎫 Vouchers y Servicios Locales</h5>
+              <button class="btn-elite" (click)="mostrarFormItem = !mostrarFormItem; editandoItemId = null; resetItemForm()">
+                <span>➕ Agregar</span>
+              </button>
+            </div>
+
+            @if (mostrarFormItem) {
+              <div class="glass-card-solid mb-3">
+                <h6 class="fw-bold mb-3">{{ editandoItemId ? 'Editar' : 'Nuevo' }} Voucher</h6>
+                <div class="row g-3">
+                  <div class="col-md-3">
+                    <label class="form-label-elite">Tipo *</label>
+                    <select class="form-select-elite w-100" [(ngModel)]="itemForm.tipo_item">
+                      <option value="EXCURSION">Excursión</option>
+                      <option value="TRASLADO">Traslado</option>
+                      <option value="SEGURO">Seguro / Póliza</option>
+                      <option value="TREN">Tren</option>
+                      <option value="BUS">Bus</option>
+                      <option value="TOUR">Tour</option>
+                      <option value="OTRO">Otro</option>
+                    </select>
+                  </div>
+                  <div class="col-md-5">
+                    <label class="form-label-elite">Nombre / Descripción *</label>
+                    <input class="form-control-elite w-100" [(ngModel)]="itemForm.nombre_item"
+                      placeholder="Ej: City Tour Buenos Aires" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label-elite">Fecha del Servicio</label>
+                    <input type="date" class="form-control-elite w-100" [(ngModel)]="itemForm.fecha_servicio" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label-elite">Nro Póliza / Voucher</label>
+                    <input class="form-control-elite w-100" [(ngModel)]="itemForm.nro_poliza_o_voucher"
+                      placeholder="Ej: VCH-2025-001" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label-elite">Proveedor Local</label>
+                    <input class="form-control-elite w-100" [(ngModel)]="itemForm.proveedor_local"
+                      placeholder="Nombre del operador local" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label-elite">Contacto Local</label>
+                    <input class="form-control-elite w-100" [(ngModel)]="itemForm.contacto_local_nombre"
+                      placeholder="Nombre del contacto" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label-elite">Teléfono de Soporte</label>
+                    <input class="form-control-elite w-100" [(ngModel)]="itemForm.telefono_soporte"
+                      placeholder="+54 9 11 ..." />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label-elite">Detalles adicionales</label>
+                    <textarea class="form-control-elite w-100" [(ngModel)]="itemForm.detalles_servicio"
+                      rows="2" placeholder="Punto de encuentro, instrucciones, observaciones..."></textarea>
+                  </div>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                  <button class="btn-elite" (click)="guardarItem()">
+                    <span>💾 {{ editandoItemId ? 'Actualizar' : 'Guardar' }}</span>
+                  </button>
+                  <button class="btn-elite-outline" (click)="resetItemForm()">Cancelar</button>
+                </div>
+              </div>
+            }
+
+            @for (item of items; track item.id) {
+              <div class="glass-card-solid mb-2">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <span class="status-pill abierto" style="font-size: 0.65rem;">{{ item.tipo_item }}</span>
+                    <span class="fw-bold ms-2" style="font-size: 0.95rem;">{{ item.nombre_item }}</span>
+                  </div>
+                  <div class="d-flex gap-1">
+                    <button class="btn-elite-outline" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;"
+                      (click)="editarItem(item)">✏️</button>
+                    <button class="btn-danger-elite" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;"
+                      (click)="eliminarItem(item.id)">🗑️</button>
+                  </div>
+                </div>
+
+                <div class="svc-detail-grid">
+                  @if (item.fecha_servicio) {
+                    <div class="svc-field">
+                      <span class="svc-label">Fecha</span>
+                      <span class="svc-value">{{ item.fecha_servicio | date:'dd/MM/yyyy':'UTC' }}</span>
+                    </div>
+                  }
+                  @if (item.nro_poliza_o_voucher) {
+                    <div class="svc-field">
+                      <span class="svc-label">Nro Voucher / Póliza</span>
+                      <span class="svc-value fw-bold">{{ item.nro_poliza_o_voucher }}</span>
+                    </div>
+                  }
+                  @if (item.proveedor_local) {
+                    <div class="svc-field">
+                      <span class="svc-label">Proveedor Local</span>
+                      <span class="svc-value">{{ item.proveedor_local }}</span>
+                    </div>
+                  }
+                  @if (item.contacto_local_nombre) {
+                    <div class="svc-field">
+                      <span class="svc-label">Contacto</span>
+                      <span class="svc-value">{{ item.contacto_local_nombre }}</span>
+                    </div>
+                  }
+                  @if (item.telefono_soporte) {
+                    <div class="svc-field">
+                      <span class="svc-label">Tel. Soporte</span>
+                      <span class="svc-value">{{ item.telefono_soporte }}</span>
+                    </div>
+                  }
+                  @if (item.detalles_servicio) {
+                    <div class="svc-field" style="grid-column: 1 / -1;">
+                      <span class="svc-label">Detalles</span>
+                      <span class="svc-value">{{ item.detalles_servicio }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            } @empty {
+              <div class="glass-card-solid" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                Sin vouchers ni servicios locales registrados
+              </div>
+            }
+          </div>
+        }
       }
     </div>
   `,
   styles: [`
+    .iata-dropdown {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+      background: var(--bg-card); border: 1px solid var(--border-light);
+      border-radius: 10px; box-shadow: var(--shadow-float);
+      max-height: 200px; overflow-y: auto; margin-top: 2px;
+    }
+    .iata-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.82rem;
+      transition: background 0.15s;
+    }
+    .iata-item:hover { background: var(--bg-secondary); }
+    .iata-code {
+      font-weight: 700; color: var(--primary);
+      min-width: 36px; font-size: 0.8rem;
+    }
+    .iata-city { color: var(--text-secondary); font-size: 0.78rem; }
     .section-title { font-weight: 700; font-size: 1rem; margin-bottom: 1rem; }
     .info-label { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .info-value { font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.5rem; }
@@ -1093,6 +1342,51 @@ export class ReservaDetalleComponent implements OnInit {
   bancoDetectado = '';
   montoConInteres = 0;
 
+  incidencias: any[] = [];
+  incidenciaForm = {
+    descripcion: '',
+    estado_gestion: 'PENDIENTE'
+  };
+  mostrarFormIncidencia = false;
+
+  items: any[] = [];
+  mostrarFormItem = false;
+  editandoItemId: number | null = null;
+
+  itemForm = {
+    tipo_item: 'EXCURSION',
+    nombre_item: '',
+    detalles_servicio: '',
+    fecha_servicio: '',
+    proveedor_local: '',
+    nro_poliza_o_voucher: '',
+    telefono_soporte: '',
+    contacto_local_nombre: ''
+  };
+
+  aeropuertosOrigen: any[] = [];
+  aeropuertosDest: any[] = [];
+
+  buscarOrigen(q: string): void {
+    if (q.length < 2) { this.aeropuertosOrigen = []; return; }
+    this.api.buscarAeropuertos(q).subscribe({ next: (r) => this.aeropuertosOrigen = r });
+  }
+
+  buscarDestino(q: string): void {
+    if (q.length < 2) { this.aeropuertosDest = []; return; }
+    this.api.buscarAeropuertos(q).subscribe({ next: (r) => this.aeropuertosDest = r });
+  }
+
+  seleccionarOrigen(a: any): void {
+    this.svcForm.vuelo_origen = a.codigo_iata;
+    this.aeropuertosOrigen = [];
+  }
+
+  seleccionarDestino(a: any): void {
+    this.svcForm.vuelo_destino = a.codigo_iata;
+    this.aeropuertosDest = [];
+  }
+
   tabActiva: Tab = 'info';
   mostrarFormServicio = false;
   mostrarFormPago = false;
@@ -1100,15 +1394,19 @@ export class ReservaDetalleComponent implements OnInit {
   editandoServicioId: number | null = null;
   proveedorRapido = { nombre_comercial: '', contacto: '', email: '' };
 
-  tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: 'info', label: 'Info', icon: '📋' },
-    { key: 'servicios', label: 'Servicios', icon: '🏨' },
-    { key: 'deudas', label: 'Deudas', icon: '📊' },
-    { key: 'pagos', label: 'Pagos', icon: '💸' },
-    { key: 'archivos', label: 'Archivos', icon: '📎' },
-    { key: 'recibos', label: 'Recibos', icon: '🧾' },
-    { key: 'tarjetas', label: 'Tarjetas Puente', icon: '💳' }
-  ];
+  get tabs(): { key: Tab; label: string; icon: string }[] {
+    return [
+      { key: 'info',      label: 'Info',      icon: '📋' },
+      { key: 'servicios', label: `Servicios${this.servicios.length ? ' (' + this.servicios.length + ')' : ''}`, icon: '🏨' },
+      { key: 'deudas',    label: 'Deudas',    icon: '📊' },
+      { key: 'pagos',     label: `Pagos${this.pagos.length ? ' (' + this.pagos.length + ')' : ''}`, icon: '💸' },
+      { key: 'archivos',  label: `Archivos${this.reserva?.archivos?.length ? ' (' + this.reserva.archivos.length + ')' : ''}`, icon: '📎' },
+      { key: 'recibos',   label: `Recibos${this.recibos.length ? ' (' + this.recibos.length + ')' : ''}`, icon: '🧾' },
+      { key: 'tarjetas',  label: 'Tarjetas',  icon: '💳' },
+      { key: 'incidencias', label: `Incidencias${this.incidencias.length ? ' (' + this.incidencias.length + ')' : ''}`, icon: '⚠️' },
+      { key: 'vouchers', label: `Vouchers${this.items.length ? ' (' + this.items.length + ')' : ''}`, icon: '🎫' }
+    ];
+  }
 
   svcForm: ServicioForm = this.resetSvcForm();
   pagoForm = {
@@ -1144,6 +1442,8 @@ export class ReservaDetalleComponent implements OnInit {
     this.api.getServiciosReserva(this.idReserva).subscribe({ next: (s) => this.servicios = s });
     this.api.getPagosReserva(this.idReserva).subscribe({ next: (p) => this.pagos = p });
     this.api.getRecibosReserva(this.idReserva).subscribe({ next: (r) => this.recibos = r });
+    this.api.getIncidenciasReserva(this.idReserva).subscribe({ next: (i) => this.incidencias = i });
+    this.api.getItemsReserva(this.idReserva).subscribe({ next: (i) => this.items = i });
     this.cargarDeudas();
   }
 
@@ -1711,5 +2011,88 @@ export class ReservaDetalleComponent implements OnInit {
 
   descargarReciboPDF(id: number): void {
     this.reciboPdf.generarReciboPDF(id).catch(err => console.error('Error generando PDF:', err));
+  }
+
+  guardarIncidencia(): void {
+    if (!this.incidenciaForm.descripcion) return;
+    this.api.crearIncidencia({
+      id_reserva: this.idReserva,
+      descripcion: this.incidenciaForm.descripcion,
+      estado_gestion: this.incidenciaForm.estado_gestion
+    }).subscribe({
+      next: () => {
+        this.mostrarFormIncidencia = false;
+        this.incidenciaForm = { descripcion: '', estado_gestion: 'PENDIENTE' };
+        this.cargarTodo();
+      },
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al guardar', 'error')
+    });
+  }
+
+  async eliminarIncidencia(id: number): Promise<void> {
+    const ok = await this.confirmSvc.confirm({
+      title: 'Eliminar Incidencia',
+      message: '¿Eliminar esta incidencia?',
+      confirmText: 'Sí, eliminar',
+      type: 'danger'
+    });
+    if (!ok) return;
+    this.api.deleteIncidencia(id).subscribe({
+      next: () => { this.confirmSvc.toast('Incidencia eliminada'); this.cargarTodo(); },
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al eliminar', 'error')
+    });
+  }
+
+  resetItemForm(): void {
+    this.itemForm = {
+      tipo_item: 'EXCURSION', nombre_item: '', detalles_servicio: '',
+      fecha_servicio: '', proveedor_local: '', nro_poliza_o_voucher: '',
+      telefono_soporte: '', contacto_local_nombre: ''
+    };
+    this.editandoItemId = null;
+    this.mostrarFormItem = false;
+  }
+
+  guardarItem(): void {
+    if (!this.itemForm.nombre_item) return;
+    const payload = { ...this.itemForm, id_reserva: this.idReserva };
+
+    const obs = this.editandoItemId
+      ? this.api.updateItem(this.editandoItemId, payload)
+      : this.api.crearItem(payload);
+
+    obs.subscribe({
+      next: () => { this.resetItemForm(); this.cargarTodo(); },
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al guardar', 'error')
+    });
+  }
+
+  editarItem(item: any): void {
+    this.editandoItemId = item.id;
+    this.itemForm = {
+      tipo_item: item.tipo_item || 'EXCURSION',
+      nombre_item: item.nombre_item || '',
+      detalles_servicio: item.detalles_servicio || '',
+      fecha_servicio: item.fecha_servicio ? item.fecha_servicio.substring(0, 10) : '',
+      proveedor_local: item.proveedor_local || '',
+      nro_poliza_o_voucher: item.nro_poliza_o_voucher || '',
+      telefono_soporte: item.telefono_soporte || '',
+      contacto_local_nombre: item.contacto_local_nombre || ''
+    };
+    this.mostrarFormItem = true;
+  }
+
+  async eliminarItem(id: number): Promise<void> {
+    const ok = await this.confirmSvc.confirm({
+      title: 'Eliminar Voucher',
+      message: '¿Eliminar este voucher/item?',
+      confirmText: 'Sí, eliminar',
+      type: 'danger'
+    });
+    if (!ok) return;
+    this.api.deleteItem(id).subscribe({
+      next: () => { this.confirmSvc.toast('Voucher eliminado'); this.cargarTodo(); },
+      error: (err) => this.confirmSvc.toast(err.error?.error || 'Error al eliminar', 'error')
+    });
   }
 }

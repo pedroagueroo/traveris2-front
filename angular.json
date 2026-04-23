@@ -47,12 +47,13 @@
               "zone.js"
             ],
             "assets": [
+              "src/favicon.svg",
+              "src/manifest.webmanifest",
               {
                 "glob": "**/*",
-                "input": "public"
-              },
-              "src/favicon.svg",
-              "src/manifest.webmanifest"
+                "input": "public",
+                "output": "/"
+              }
             ],
             "styles": [
               "node_modules/bootstrap/dist/css/bootstrap.min.css",

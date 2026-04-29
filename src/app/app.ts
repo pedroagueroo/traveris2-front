@@ -9,17 +9,21 @@ import { GlobalSearchComponent } from './components/global-search/global-search'
 import { AuthService } from './services/auth.service';
 import { ThemeService } from './services/theme.service';
 import { SidebarService } from './services/sidebar.service';
+import { routeAnimations } from './route-animations';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet, NavbarComponent, ConfirmModalComponent, LoadingComponent, GlobalSearchComponent],
+  animations: [routeAnimations],
   template: `
     @if (auth.estaLogueado()) {
       <app-navbar />
     }
-    <main [class.main-content]="auth.estaLogueado()" [class.expanded]="sidebar.collapsed()">
-      <router-outlet />
+    <main [class.main-content]="auth.estaLogueado()"
+          [class.expanded]="sidebar.collapsed()"
+          [@routeAnimations]="getRouteState(outlet)">
+      <router-outlet #outlet="outlet" />
     </main>
     <app-confirm-modal />
     <app-loading />
@@ -49,5 +53,15 @@ export class AppComponent {
       const base = '/' + e.urlAfterRedirects.split('/')[1];
       this.title.setTitle(titles[base] || 'Traveris Pro');
     });
+  }
+
+  getRouteState(outlet: any): string {
+    try {
+      return outlet?.isActivated 
+        ? (outlet.activatedRoute?.snapshot?.url?.[0]?.path || 'root')
+        : 'none';
+    } catch {
+      return 'none';
+    }
   }
 }

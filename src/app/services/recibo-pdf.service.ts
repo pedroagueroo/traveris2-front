@@ -48,14 +48,8 @@ export class ReciboPdfService {
     const secondary = this.hexToRgb(agencia?.recibo_config?.secondaryColor || '#8B5CF6');
 
     // Cargar banner si existe
-    let bannerBase64: string | null = null;
-    if (agencia?.banner_url) {
-      try {
-        bannerBase64 = await this.cargarImagenBase64(agencia.banner_url);
-      } catch (e) {
-        console.warn('No se pudo cargar el banner, se usará color sólido:', e);
-      }
-    }
+    let bannerBase64: string | null = detalle.bannerBase64 || null;
+    let logoBase64: string | null = detalle.logoBase64 || null;
 
     // ═══════════════════════════════════════════════════════════════
     // COPIA 1 — AGENCIA (top half)

@@ -23,18 +23,16 @@ import { LoadingService } from '../../services/loading.service';
   styles: [`
     .loading-overlay {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.45);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
       z-index: 99999;
       display: flex;
       align-items: center;
       justify-content: center;
-      animation: fadeIn 0.15s ease;
+      animation: fadeInOverlay 0.2s ease;
     }
 
     .loading-content {
@@ -89,9 +87,9 @@ import { LoadingService } from '../../services/loading.service';
       to { transform: rotate(360deg); }
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
+    @keyframes fadeInOverlay {
+      from { opacity: 0; backdrop-filter: blur(0px); }
+      to   { opacity: 1; backdrop-filter: blur(3px); }
     }
   `]
 })

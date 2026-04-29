@@ -382,6 +382,8 @@ export interface ReciboDetalle {
   recibo: Recibo;
   agencia: AgenciaConfig | null;
   reserva: { destino_final: string; fecha_viaje_salida: string; fecha_viaje_regreso: string } | null;
+  bannerBase64?: string | null;
+  logoBase64?: string | null;
 }
 
 // ─── CAJA ────────────────────────────────────────────────────────────────────

@@ -326,19 +326,22 @@ a:hover {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-secondary);
-  transition: var(--transition);
+  transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
   background: transparent;
+  white-space: nowrap;
 }
 
 .nav-tabs-premium .nav-link:hover {
   color: var(--text-primary);
   background: var(--bg-card);
+  transform: translateY(-1px);
 }
 
 .nav-tabs-premium .nav-link.active {
   background: var(--primary);
   color: white;
-  box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.3);
+  box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.35);
+  transform: translateY(0);
 }
 
 /* ─── TABLE PREMIUM ──────────────────────────────────────────────────────── */
@@ -381,7 +384,8 @@ a:hover {
   min-height: 100vh;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border-color);
-  transition: width 0.3s ease;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: fixed;
   top: 0;
   left: 0;
@@ -404,7 +408,7 @@ a:hover {
   font-weight: 500;
   border-radius: var(--radius-md);
   margin: 0.15rem 0.5rem;
-  transition: var(--transition);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
   cursor: pointer;
   text-decoration: none;
 }
@@ -412,12 +416,14 @@ a:hover {
 .sidebar-nav-item:hover {
   background: rgba(var(--primary-rgb), 0.08);
   color: var(--primary-light);
+  transform: translateX(3px);
 }
 
 .sidebar-nav-item.active {
   background: rgba(var(--primary-rgb), 0.15);
   color: var(--primary);
   font-weight: 600;
+  transform: translateX(3px);
 }
 
 .sidebar-nav-item .nav-icon {
@@ -774,4 +780,65 @@ a:hover {
     font-size: 0.8rem;
     padding: 0.6rem 0.75rem;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SKELETON LOADERS
+   ═══════════════════════════════════════════════════════════ */
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-card-hover) 50%,
+    var(--bg-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--radius-md);
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-text  { height: 14px; margin-bottom: 8px; }
+.skeleton-title { height: 20px; width: 60%; margin-bottom: 12px; }
+.skeleton-card  { height: 80px; width: 100%; margin-bottom: 8px; }
+
+/* ═══════════════════════════════════════════════════════════
+   MICRO-ANIMATIONS
+   ═══════════════════════════════════════════════════════════ */
+.btn-elite,
+.btn-elite-outline,
+.btn-danger-elite,
+.btn-success-elite {
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+              background 0.2s ease, opacity 0.15s ease;
+}
+
+.btn-elite:active,
+.btn-elite-outline:active,
+.btn-danger-elite:active,
+.btn-success-elite:active {
+  transform: scale(0.97) translateY(0) !important;
+}
+
+/* Cards con hover mejorado */
+.glass-card-solid {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-card-solid:hover {
+  border-color: rgba(var(--primary-rgb), 0.2);
+}
+
+/* Status pills con transición */
+.status-pill {
+  transition: opacity 0.2s ease;
+}
+
+/* Money wallets */
+.money-wallet {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s ease;
 }
